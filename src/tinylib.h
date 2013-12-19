@@ -118,21 +118,31 @@
 #include <fstream>
 #include <sstream>
 
-#if defined(__APPLE__)
+#if defined(_WIN32)
+#elif defined(__APPLE__)
 #  if defined(ROXLU_USE_OPENGL)
 #    include <OpenGL/gl3.h>
 #  endif
-#  include <libgen.h> /* dirname */
+#  include <libgen.h>                               /* dirname */
 #  include <CoreFoundation/CFRunLoop.h>
 #  include <mach/mach.h>
 #  include <mach/mach_time.h>
-#  include <mach-o/dyld.h> /* _NSGetExecutablePath */
+#  include <mach-o/dyld.h>                          /* _NSGetExecutablePath */
 #  include <sys/resource.h>
 #  include <sys/sysctl.h>
-#  include <sys/stat.h> /* stat() */
-#  include <unistd.h>  /* sysconf */
-#else 
+#  include <sys/stat.h>                             /* stat() */
+#  include <unistd.h>                               /* sysconf */
+#elif defined(__linux)
+#  include <string.h>                               /* strlen() */
+#  include <dirent.h>                               /* stat() */
+#  include <errno.h>                                /* errno */
+#  include <unistd.h>                               /* readlink(), getcwd() */
+#  include <sys/time.h>                             /* timeofday() */
+#  include <libgen.h>                               /* dirname() */
+#  include <sys/stat.h>
+#  include <stdarg.h>
 #  include <GLXW/glxw.h>
+#  define MAX_PATH 4096
 #endif
 
 #include <math.h>
