@@ -42,8 +42,12 @@
 
   UTILS
   ===================================================================================
-  std::string path = rx_get_exe_path();                  - returns the path to the exe 
-  std::string contents = rx_read_file("filepath.txt");   - returns the contents of the filepath.
+  rx_get_exe_path();                  - returns the path to the exe 
+  rx_read_file("filepath.txt");       - returns the contents of the filepath.
+  rx_to_float("0.15");                - convert a string to float 
+  rx_to_int("10");                    - convert a string to integer
+  rx_to_data_path("filename.txt")     - convert the given filename to the data dir
+  rx_is_dir("path")                   - returns true when the path is a dir
 
 
   MATH - define `ROXLU_USE_MATH` before including. 
@@ -68,6 +72,10 @@
       vec2 normalized(v)      - get the normalized vector
       void print()            - print the x and y 
       vec3 cross(a,b)         - cross product (vec3)
+
+      vec3
+      -----------------------------------------------------------------------------
+      vec3 perpendicular(a)   - get a perpendicular vector from the given vec, this vector doesn't have to be normalized!, based on http://lolengine.net/blog/2013/09/21/picking-orthogonal-vector-combing-coconuts 
     
       mat4
       ------------------------------------------------------------------------------
@@ -108,6 +116,7 @@
 #include <algorithm>
 #include <string>
 #include <fstream>
+#include <sstream>
 
 #if defined(__APPLE__)
 #  if defined(ROXLU_USE_OPENGL)
@@ -303,6 +312,80 @@ static std::string rx_get_exe_path() {
   return ret;
 }
 #endif // rx_get_exe_path()
+
+static bool rx_is_dir(std::string filepath) {
+  struct stat st;
+  int result = stat(filepath.c_str(), &st);
+
+  if(result < 0) {
+    if(errno == EACCES) {
+      printf("EACCESS: no permission for: %s", filepath.c_str());
+    }
+    else if(errno == EFAULT) {
+      printf("EFAULT: bad address, for: %s", filepath.c_str());
+    }
+    else if(errno == ELOOP) {
+      printf("ELOOP: too many links, for: %s", filepath.c_str());
+    }
+    else if(errno == ENAMETOOLONG) {
+      printf("ENAMETOOLONG: for: %s", filepath.c_str());
+    }
+    else if(errno == ENOENT) {
+      // we expect this when the dir doesn't exist
+      return false;
+    }
+    else if(errno == ENOMEM) {
+      printf("ENOMEM: for: %s", filepath.c_str());
+    }
+    else if(errno == ENOTDIR) {
+      printf("ENOTDIR: for: %s", filepath.c_str());
+    }
+    else if(errno == EOVERFLOW) {
+      printf("EOVERFLOW: for: %s", filepath.c_str());
+    }
+
+    return false;
+  }
+
+#if defined(__APPLE__) or defined(__linux__)
+  return S_ISDIR(st.st_mode);
+#else 
+  return result == 0;
+#endif  
+
+}
+
+static std::string rx_to_data_path(const std::string filename) {
+  std::string exepath = rx_get_exe_path();
+
+#if defined(__APPLE__)
+  if(rx_is_dir(exepath +"data")) {
+    exepath += "data/" +filename;
+  }
+  else if(rx_is_dir(exepath +"../MacOS")) {
+    exepath += "../../../data/" +filename;
+  }
+#else 
+  exepath += "data/" +filename;
+#endif  
+
+  return exepath;
+}
+
+static int rx_to_int(const std::string& v) {
+  int r = 0;
+  std::stringstream ss(v);
+  ss >> r;
+  return r;
+}
+
+static float rx_to_float(const std::string& v) {
+  float r = 0.0f;
+  std::stringstream ss(v);
+  ss >> r;
+  return r;
+}
+
 
 #if defined(ROXLU_USE_PNG)
 // write an w*h array of pixels to a png file
@@ -577,6 +660,7 @@ static bool rx_load_png(std::string filepath,
  Vec2(const Vec2<T>& o) : x(o.x), y(o.y) {}
  Vec2(T f) : x(f), y(f) {}
 
+  void set(T vx, T vy) { x = vx; y = vy; } 
   T* ptr() { return &x; }
   T& operator [](const unsigned int dx) { return *(&x + dx); } 
   
@@ -638,6 +722,7 @@ static bool rx_load_png(std::string filepath,
  Vec3(const Vec3<T>& o) : x(o.x), y(o.y), z(o.z) {}
  Vec3(T f) : x(f), y(f), z(f) {}
 
+   void set(const float xv, const float yv, const float zv) { x = xv; y = yv; z = zv; }
    T* ptr() { return &x; }
    T& operator [](const unsigned int dx) { return *(&x + dx); } 
   
@@ -681,6 +766,7 @@ static bool rx_load_png(std::string filepath,
    friend Vec3<T> fract(const Vec3<T> &v) { return v - floor(v); }
    friend Vec3<T> normalized(const Vec3<T> &v) { return v / length(v); }
    friend Vec3<T> cross(const Vec3<T> &a, const Vec3<T> &b) { return Vec3<T>(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }
+   friend Vec3<T> perpendicular(const Vec3<T>& v) {  return abs(v.x) > abs(v.z) ? Vec3(-v.y, v.x, 0.0) : Vec3(0.0, -v.z, v.y); }
 
    void print() { printf("x: %f, y: %f, z: %f\n", x, y, z); } 
 
@@ -760,13 +846,14 @@ static bool rx_load_png(std::string filepath,
    Matrix4<T>& rotateZ(T rad);
    Matrix4<T>& rotate(T rad, T x, T y, T z);
    Matrix4<T>& rotate(T rad, const Vec3<T>& v) { return rotate(rad, v.x, v.y, v.z); } 
-
    Matrix4<T>& translate(T x, T y, T z);
+   Matrix4<T>& translate(const Vec3<T>& v) { return translate(v.x, v.y, v.z); } 
    Matrix4<T>& scale(T x, T y, T z);
    Matrix4<T>& perspective(T fovDegrees, T aspect, T n, T f);
    Matrix4<T>& ortho(T l, T r, T b, T t, T n, T f);
    Matrix4<T>& frustum(T l, T r, T b, T t, T n, T f);
    Matrix4<T>& identity();
+   Matrix4<T>& lookAt(Vec3<T> pos, Vec3<T> target, Vec3<T> up);
    T* ptr() { return &m[0]; } 
 
    static Matrix4<T> rotation(T rad, T x, T y, T z);
@@ -1010,6 +1097,21 @@ static bool rx_load_png(std::string filepath,
    return r;
  }
 
+template<class T>
+Matrix4<T>& Matrix4<T>::lookAt(Vec3<T> pos, Vec3<T> target, Vec3<T> up) {
+
+  Vec3<T> ax_z = normalized(pos - target);
+  Vec3<T> ax_x = normalized(cross(ax_z, up));
+  Vec3<T> ax_y = cross(ax_z, ax_x);
+
+  m[0] = ax_x.x;  m[4] = ax_x.y;  m[8] = ax_x.z;   
+  m[1] = ax_y.x;  m[5] = ax_y.y;  m[9] = ax_y.z;   
+  m[2] = ax_z.x;  m[6] = ax_z.y;  m[10] = ax_z.z;
+  
+  translate(-pos);
+  return *this ;
+}
+
  typedef Matrix4<float> mat4;
  typedef Vec4<float> vec4;
  typedef Vec3<float> vec3;
@@ -1031,7 +1133,293 @@ static bool rx_load_png(std::string filepath,
    return result;
  }
 
+ // PERLIN
+ // ----------------------------------------------------------------------------
+ /*
+
+  # Perlin
+
+  Perlin noise, thanks to Ken P. 
+  This class is based on: http://www.flipcode.com/archives/Perlin_Noise_Class.shtml 
+  with some super tiny changes. Thanks guys!
+
+  octaves: use a value between 1 - 16, 1 = smooth, 16 = noisy, values between 4 - 8 give conventional noise results
+  freq:    use a value between 1 - 8, which will give reasanoble results (you can use any value you want)
+  ampl:    a value of 1, will result in values between -1 and 1
+  seed:    random seed, eg. 94
+
+ */
+
+#define PERLIN_SIZE 1024
+
+class Perlin {
+ public:
+  Perlin(int octaves, float freq, float amp, int seed);
+  float get(float x);
+  float get(float x, float y);
+
+ private:
+  void initPerlin(int n, float p);
+  void init();
+  float noise1(float arg);
+  float noise2(float vec[2]);
+  float noise3(float vec[3]);
+  void normalize2(float v[2]);
+  void normalize3(float v[3]);
+  float noise2D(float vec[2]);
+
+ private:
+  int octaves;
+  float freq;
+  float amp;
+  int seed;
+
+  int p[PERLIN_SIZE + PERLIN_SIZE + 2];
+  float g3[PERLIN_SIZE + PERLIN_SIZE + 2][3];
+  float g2[PERLIN_SIZE + PERLIN_SIZE + 2][2];
+  float g1[PERLIN_SIZE + PERLIN_SIZE + 2];
+  bool start;
+  
+};
+
+inline float Perlin::get(float x) {
+  float vec[2] = {x, 0.0f};
+  return noise2D(vec);
+}
+
+inline float Perlin::get(float x, float y) {
+  float vec[2] = {x, y};
+  return noise2D(vec);
+}
+
+#define PERLIN_B PERLIN_SIZE
+#define PERLIN_BM (PERLIN_SIZE - 1)
+#define PERLIN_N 0x1000
+#define PERLIN_NP 12 /* 2^N */
+#define PERLIN_NM 0xFFF
+
+#define PERLIN_CURVE(t)  ( t * t * (3.0f - 2.0f * t) )
+#define PERLIN_LERP(t, a, b) ( a + t * (b - a) )
+
+#define PERLIN_SETUP(i, b0, b1, r0, r1) \
+  t = vec[i] + PERLIN_N; \
+  b0 = ((int)t) & PERLIN_BM; \
+  b1 = (b0+1) & PERLIN_BM; \
+  r0 = t - (int)t; \
+  r1 = r0 - 1.0f;
+
+inline Perlin::Perlin(int octaves, float freq, float amp, int seed)
+  :octaves(octaves)
+  ,freq(freq)
+  ,amp(amp)
+  ,seed(seed)
+  ,start(true)
+{
+}
+
+inline float Perlin::noise1(float arg) {
+  int bx0, bx1;
+  float rx0, rx1, sx, t, u , v, vec[1];
+  vec[0] = arg;
+
+  if(start) {
+    srand(seed);
+    start = false;
+    init();
+  }
+
+  PERLIN_SETUP(0, bx0, bx1, rx0, rx1);
+  sx = PERLIN_CURVE(rx0);
+  u = rx0 * g1[ p[bx0] ];
+  v = rx1 * g1[ p[bx1] ];
+  return PERLIN_LERP(sx, u, v);
+}
+
+inline float Perlin::noise2(float vec[2]) {
+  int bx0, bx1, by0, by1, b00, b10, b01, b11;
+  float rx0, rx1, ry0, ry1, *q, sx, sy, a, b, t, u, v;
+  int i, j;
+
+  if(start) {
+    srand(seed);
+    start = false;
+    init();
+  }
+  
+  PERLIN_SETUP(0, bx0, bx1, rx0, rx1);
+  PERLIN_SETUP(1, by0, by1, ry0, ry1);
+
+  i = p[bx0];
+  j = p[bx1];
+
+  b00 = p[i + by0];
+  b10 = p[j + by0];
+  b01 = p[i + by1];
+  b11 = p[j + by1];
+  
+  sx = PERLIN_CURVE(rx0);
+  sy = PERLIN_CURVE(ry0);
+
+#define at2(rx, ry) (rx * q[0] + ry * q[1])
+
+  q = g2[b00];
+  u = at2(rx0, ry0);
+  q = g2[b10];
+  v = at2(rx1, ry0);
+  a = PERLIN_LERP(sx, u, v);
+
+  q = g2[b01];
+  u = at2(rx0, ry1);
+  q = g2[b11];
+  v = at2(rx1, ry1);
+  b = PERLIN_LERP(sx, u, v);
+
+  return PERLIN_LERP(sy, a, b);
+}
+
+inline float Perlin::noise3(float vec[3]) {
+  int bx0, bx1, by0, by1, bz0, bz1, b00, b10, b01, b11;
+  float rx0, rx1, ry0, ry1, rz0, rz1, *q, sy, sz, a, b, c, d, t, u, v;
+  int i, j;
+  
+  if(start) {
+    srand(seed);
+    start = false;
+    init();
+  }
+
+  PERLIN_SETUP(0, bx0, bx1, rx0, rx1);
+  PERLIN_SETUP(1, by0, by1, ry0, ry1);
+  PERLIN_SETUP(2, bz0, bz1, rz0, rz1);
+
+  i = p[bx0];
+  j = p[bx1];
+
+  b00 = p[i + by0];
+  b10 = p[j + by0];
+  b01 = p[i + by1];
+  b11 = p[j + by1];
+
+  t  = PERLIN_CURVE(rx0);
+  sy = PERLIN_CURVE(ry0);
+  sz = PERLIN_CURVE(rz0);
+
+#define at3(rx,ry,rz) ( rx * q[0] + ry * q[1] + rz * q[2] )
+
+  q = g3[b00 + bz0];
+  u = at3(rx0,ry0,rz0);
+  q = g3[b10 + bz0]; 
+  v = at3(rx1,ry0,rz0);
+  a = PERLIN_LERP(t, u, v);
+
+  q = g3[b01 + bz0]; 
+  u = at3(rx0,ry1,rz0);
+  q = g3[b11 + bz0]; 
+  v = at3(rx1,ry1,rz0);
+  b = PERLIN_LERP(t, u, v);
+
+  c = PERLIN_LERP(sy, a, b);
+
+  q = g3[b00 + bz1]; 
+  u = at3(rx0,ry0,rz1);
+  q = g3[b10 + bz1]; 
+  v = at3(rx1,ry0,rz1);
+  a = PERLIN_LERP(t, u, v);
+
+  q = g3[ b01 + bz1 ]; 
+  u = at3(rx0,ry1,rz1);
+  q = g3[ b11 + bz1 ]; 
+  v = at3(rx1,ry1,rz1);
+  b = PERLIN_LERP(t, u, v);
+
+  d = PERLIN_LERP(sy, a, b);
+
+  return PERLIN_LERP(sz, c, d);
+}
+
+inline void Perlin::normalize2(float v[2]) {
+  float s;
+
+  s = (float)sqrt(v[0] * v[0] + v[1] * v[1]);
+  s = 1.0f/s;
+  v[0] = v[0] * s;
+  v[1] = v[1] * s;
+}
+
+inline void Perlin::normalize3(float v[3]) {
+  float s;
+
+  s = (float)sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+  s = 1.0f/s;
+
+  v[0] = v[0] * s;
+  v[1] = v[1] * s;
+  v[2] = v[2] * s;
+}
+
+inline void Perlin::init(void) {
+  int i, j, k;
+
+  for(i = 0 ; i < PERLIN_B ; i++) {
+    p[i] = i;
+    g1[i] = (float)((rand() % (PERLIN_B + PERLIN_B)) - PERLIN_B) / PERLIN_B;
+
+    for(j = 0 ; j < 2 ; j++) {
+      g2[i][j] = (float)((rand() % (PERLIN_B + PERLIN_B)) - PERLIN_B) / PERLIN_B;
+    }
+
+    normalize2(g2[i]);
+
+    for(j = 0 ; j < 3 ; j++) {
+      g3[i][j] = (float)((rand() % (PERLIN_B + PERLIN_B)) - PERLIN_B) / PERLIN_B;
+    }
+
+    normalize3(g3[i]);
+  }
+
+  while(--i) {
+      k = p[i];
+      p[i] = p[j = rand() % PERLIN_B];
+      p[j] = k;
+  }
+
+  for(i = 0 ; i < PERLIN_B + 2 ; i++) {
+
+    p[PERLIN_B + i] = p[i];
+    g1[PERLIN_B + i] = g1[i];
+
+    for (j = 0 ; j < 2 ; j++) {
+      g2[PERLIN_B + i][j] = g2[i][j];
+    }
+
+    for(j = 0 ; j < 3 ; j++){
+      g3[PERLIN_B + i][j] = g3[i][j];
+    }
+
+  }
+}
+
+inline float Perlin::noise2D(float vec[2]) {
+
+  float result = 0.0f;
+  float amplitude = amp;
+
+  vec[0] *= freq;
+  vec[1] *= freq;
+
+  for( int i = 0; i < octaves; i++ ) {
+      result += noise2(vec) * amplitude;
+      vec[0] *= 2.0f;
+      vec[1] *= 2.0f;
+      amplitude *= 0.5f;
+  }
+
+  return result;
+}
+
+
 #endif // ROXLU_USE_MATH
+
 
  // ----------------------------------------------------------------------------
 #endif
