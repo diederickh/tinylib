@@ -508,9 +508,9 @@ static bool rx_save_png(std::string filepath, unsigned char* pixels, int w, int 
   
 static bool rx_load_png(std::string filepath, 
                         unsigned char** pixels,
-                        uint32_t& width,
-                        uint32_t& height,
-                        uint32_t& nchannels
+                        int& width,
+                        int& height,
+                        int& nchannels
 )
 {
   png_structp png_ptr;
@@ -712,7 +712,7 @@ static bool rx_load_png(std::string filepath,
   friend Vec2<T> ceil(const Vec2<T> &v) { return Vec2<T>(ceilf(v.x), ceilf(v.y)); }
   friend Vec2<T> abs(const Vec2<T> &v) { return Vec2<T>(fabsf(v.x), fabsf(v.y)); }
   friend Vec2<T> fract(const Vec2<T> &v) { return v - floor(v); }
-  friend Vec2<T> normalized(const Vec2<T> &v) { return v / length(v); }
+  friend Vec2<T> normalized(const Vec2<T> &v) { T l = length(v); if(!l) { return T(0); } else return v / l; }
 
   void print() { printf("x: %f, y: %f\n", x, y); } 
 
@@ -774,7 +774,7 @@ static bool rx_load_png(std::string filepath,
    friend Vec3<T> ceil(const Vec3<T> &v) { return Vec3<T>(ceilf(v.x), ceilf(v.y), ceilf(v.z)); }
    friend Vec3<T> abs(const Vec3<T> &v) { return Vec3<T>(fabsf(v.x), fabsf(v.y), fabsf(v.z)); }
    friend Vec3<T> fract(const Vec3<T> &v) { return v - floor(v); }
-   friend Vec3<T> normalized(const Vec3<T> &v) { return v / length(v); }
+   friend Vec3<T> normalized(const Vec3<T> &v) { T l = length(v); if(!l) { return T(0); } else return v / l; }
    friend Vec3<T> cross(const Vec3<T> &a, const Vec3<T> &b) { return Vec3<T>(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }
    friend Vec3<T> perpendicular(const Vec3<T>& v) {  return abs(v.x) > abs(v.z) ? Vec3(-v.y, v.x, 0.0) : Vec3(0.0, -v.z, v.y); }
 
@@ -956,7 +956,7 @@ static bool rx_load_png(std::string filepath,
    m[5] = T(1) / (tan_hfov);
    m[10] = - (f + n) / (f - n);
    m[11] = - T(1);
-   m[14] = - (T(2) * f * n) / (f - n); 
+   m[14] = - (T(2) * f * n) / (f - n);          
    return *this;
  }
 
@@ -1058,11 +1058,12 @@ static bool rx_load_png(std::string filepath,
  template<class T>
    Matrix4<T>& Matrix4<T>::operator *= (const Matrix4<T>& o) { 
    Matrix4<T> r;
+
    r.m[0]  =  m[0] * o.m[0]  +  m[4] * o.m[1]  +  m[8]  * o.m[2]  +  m[12] * o.m[3];
    r.m[1]  =  m[1] * o.m[0]  +  m[5] * o.m[1]  +  m[9]  * o.m[2]  +  m[13] * o.m[3];
    r.m[2]  =  m[2] * o.m[0]  +  m[6] * o.m[1]  +  m[10] * o.m[2]  +  m[14] * o.m[3];
    r.m[3]  =  m[3] * o.m[0]  +  m[7] * o.m[1]  +  m[11] * o.m[2]  +  m[15] * o.m[3];
-                
+
    r.m[4]  =  m[0] * o.m[4]  +  m[4] * o.m[5]  +  m[8]  * o.m[6]  +  m[12] * o.m[7];
    r.m[5]  =  m[1] * o.m[4]  +  m[5] * o.m[5]  +  m[9]  * o.m[6]  +  m[13] * o.m[7];
    r.m[6]  =  m[2] * o.m[4]  +  m[6] * o.m[5]  +  m[10] * o.m[6]  +  m[14] * o.m[7];
@@ -1085,6 +1086,7 @@ static bool rx_load_png(std::string filepath,
  template<class T>
    Matrix4<T> Matrix4<T>::operator * (const Matrix4<T>& o) const {
    Matrix4<T> r;
+
    r.m[0]  =  m[0] * o.m[0]  +  m[4] * o.m[1]  +  m[8]  * o.m[2]  +  m[12] * o.m[3];
    r.m[1]  =  m[1] * o.m[0]  +  m[5] * o.m[1]  +  m[9]  * o.m[2]  +  m[13] * o.m[3];
    r.m[2]  =  m[2] * o.m[0]  +  m[6] * o.m[1]  +  m[10] * o.m[2]  +  m[14] * o.m[3];
@@ -1111,13 +1113,13 @@ template<class T>
 Matrix4<T>& Matrix4<T>::lookAt(Vec3<T> pos, Vec3<T> target, Vec3<T> up) {
 
   Vec3<T> ax_z = normalized(pos - target);
-  Vec3<T> ax_x = normalized(cross(ax_z, up));
+  Vec3<T> ax_x = perpendicular(ax_z);  // Vec3<T> ax_x = normalized(cross(ax_z, up)); // when lookat is vec3(0,0,0), cross returns 0,0,0 too! therefore I'm using perpendicular
   Vec3<T> ax_y = cross(ax_z, ax_x);
 
   m[0] = ax_x.x;  m[4] = ax_x.y;  m[8] = ax_x.z;   
   m[1] = ax_y.x;  m[5] = ax_y.y;  m[9] = ax_y.z;   
   m[2] = ax_z.x;  m[6] = ax_z.y;  m[10] = ax_z.z;
-  
+
   translate(-pos);
   return *this ;
 }
