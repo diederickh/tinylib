@@ -26,12 +26,19 @@
   #define ROXLU_USE_MATH             - to use the vec2, vec3, vec4, mat4 classes
 
 
-  SHADER - define `ROXLU_USE_OPENGL` before including
+  OPENGLR - define `ROXLU_USE_OPENGL` before including
   ===================================================================================
-  vert = rx_create_shader(GL_VERTEX_SHADER, source_char_p);    - create a shader, pass type
-  prog = rx_create_program(vert, frag);                        - create a problem - DOES NOT LINK
-  rx_print_shader_link_info(prog)                              - print the program link info
-  rx_print_shader_compile_info(vert)                           - print the shader compile info
+  rx_create_shader(GL_VERTEX_SHADER, source_char_p);    - create a shader, pass type
+  rx_create_program(vert, frag);                        - create a problem - DOES NOT LINK
+  rx_print_shader_link_info(prog)                       - print the program link info
+  rx_print_shader_compile_info(vert)                    - print the shader compile info
+  rx_create_texture(filepath)                           - loads a png and creates a texture (only when png is enabled)  
+  rx_get_uniform_location(prog, name)                   - returns the location of the uniform but will exit when it can't find the uniform.
+  rx_uniform_1i(prog, name, value)                      - set a 1i value
+  rx_uniform_1f(prog, name, value)                      - set a flow value
+  rx_uniform_mat4fv(prog, name, count, trans, ptr)      - set a mat4fv
+  VertexP                                               - vertex type for position data
+  VertexPT                                              - vertex type for position and texture coord data
 
 
   IMAGES - define `ROXLU_USE_PNG` before including
@@ -199,7 +206,12 @@
 #  define DX(i,j,w)((j)*(w))+(i)
 #endif
 
+#if defined(ROXLU_USE_PNG) 
+static bool rx_load_png(std::string filepath, unsigned char** pixels, int& w, int& h, int& nchannels);
+#endif
+
 #if defined(ROXLU_USE_OPENGL)
+
 static void rx_print_shader_link_info(GLuint shader) {
   GLint status = 0;
   GLint count = 0;
@@ -255,6 +267,65 @@ static GLuint rx_create_shader(GLenum type, const char* src) {
   rx_print_shader_compile_info(s);
   return s;
 }
+
+static GLint rx_get_uniform_location(GLuint prog, std::string name) {
+#if !defined(NDEBUG)
+  GLint loc = glGetUniformLocation(prog, name.c_str());
+  if(loc < 0) {
+    printf("Error: cannot find the uniform: %s\n", name.c_str());
+    ::exit(EXIT_FAILURE);
+  }
+#else
+  GLint loc = glGetUniformLocation(prog, name.c_str());
+#endif
+  
+  return loc;
+}
+
+static void rx_uniform_1i(GLuint prog, std::string name, GLint v) {
+  glUniform1i(rx_get_uniform_location(prog, name), v);
+}
+
+static void rx_uniform_1f(GLuint prog, std::string name, GLfloat v) {
+  glUniform1f(rx_get_uniform_location(prog, name), v);
+}
+
+static void rx_uniform_mat4fv(GLuint prog, std::string name, GLsizei count, GLboolean transpose, const GLfloat* value) {
+  glUniformMatrix4fv(rx_get_uniform_location(prog, name), count, transpose, value);
+}
+
+#if defined(ROXLU_USE_PNG)
+static GLuint rx_create_texture(std::string filepath) {
+   
+  int w, h, n;
+  unsigned char* pix;
+ 
+  if(!rx_load_png(filepath, &pix, w, h, n)) {
+    printf("Error: cannot find: %s\n", filepath.c_str());
+    ::exit(EXIT_FAILURE);
+  }
+ 
+  GLuint tex;
+  GLenum format = GL_RGB;
+ 
+  if(n == 4) {
+    format = GL_RGBA;
+  }
+ 
+  glGenTextures(1, &tex);
+  glBindTexture(GL_TEXTURE_2D, tex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, format, GL_UNSIGNED_BYTE, pix);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+ 
+  delete[] pix;
+  pix = NULL;
+  return tex;
+}
+#endif
+
 #endif // ROXLU_USE_OPENGL
 
 // UTILS
@@ -508,9 +579,9 @@ static bool rx_save_png(std::string filepath, unsigned char* pixels, int w, int 
   
 static bool rx_load_png(std::string filepath, 
                         unsigned char** pixels,
-                        uint32_t& width,
-                        uint32_t& height,
-                        uint32_t& nchannels
+                        int& width,
+                        int& height,
+                        int& nchannels
 )
 {
   png_structp png_ptr;
@@ -712,7 +783,7 @@ static bool rx_load_png(std::string filepath,
   friend Vec2<T> ceil(const Vec2<T> &v) { return Vec2<T>(ceilf(v.x), ceilf(v.y)); }
   friend Vec2<T> abs(const Vec2<T> &v) { return Vec2<T>(fabsf(v.x), fabsf(v.y)); }
   friend Vec2<T> fract(const Vec2<T> &v) { return v - floor(v); }
-  friend Vec2<T> normalized(const Vec2<T> &v) { return v / length(v); }
+  friend Vec2<T> normalized(const Vec2<T> &v) { T l = length(v); if(!l) { return T(0); } else return v / l; }
 
   void print() { printf("x: %f, y: %f\n", x, y); } 
 
@@ -774,7 +845,7 @@ static bool rx_load_png(std::string filepath,
    friend Vec3<T> ceil(const Vec3<T> &v) { return Vec3<T>(ceilf(v.x), ceilf(v.y), ceilf(v.z)); }
    friend Vec3<T> abs(const Vec3<T> &v) { return Vec3<T>(fabsf(v.x), fabsf(v.y), fabsf(v.z)); }
    friend Vec3<T> fract(const Vec3<T> &v) { return v - floor(v); }
-   friend Vec3<T> normalized(const Vec3<T> &v) { return v / length(v); }
+   friend Vec3<T> normalized(const Vec3<T> &v) { T l = length(v); if(!l) { return T(0); } else return v / l; }
    friend Vec3<T> cross(const Vec3<T> &a, const Vec3<T> &b) { return Vec3<T>(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }
    friend Vec3<T> perpendicular(const Vec3<T>& v) {  return abs(v.x) > abs(v.z) ? Vec3(-v.y, v.x, 0.0) : Vec3(0.0, -v.z, v.y); }
 
@@ -956,7 +1027,7 @@ static bool rx_load_png(std::string filepath,
    m[5] = T(1) / (tan_hfov);
    m[10] = - (f + n) / (f - n);
    m[11] = - T(1);
-   m[14] = - (T(2) * f * n) / (f - n); 
+   m[14] = - (T(2) * f * n) / (f - n);          
    return *this;
  }
 
@@ -1058,11 +1129,12 @@ static bool rx_load_png(std::string filepath,
  template<class T>
    Matrix4<T>& Matrix4<T>::operator *= (const Matrix4<T>& o) { 
    Matrix4<T> r;
+
    r.m[0]  =  m[0] * o.m[0]  +  m[4] * o.m[1]  +  m[8]  * o.m[2]  +  m[12] * o.m[3];
    r.m[1]  =  m[1] * o.m[0]  +  m[5] * o.m[1]  +  m[9]  * o.m[2]  +  m[13] * o.m[3];
    r.m[2]  =  m[2] * o.m[0]  +  m[6] * o.m[1]  +  m[10] * o.m[2]  +  m[14] * o.m[3];
    r.m[3]  =  m[3] * o.m[0]  +  m[7] * o.m[1]  +  m[11] * o.m[2]  +  m[15] * o.m[3];
-                
+
    r.m[4]  =  m[0] * o.m[4]  +  m[4] * o.m[5]  +  m[8]  * o.m[6]  +  m[12] * o.m[7];
    r.m[5]  =  m[1] * o.m[4]  +  m[5] * o.m[5]  +  m[9]  * o.m[6]  +  m[13] * o.m[7];
    r.m[6]  =  m[2] * o.m[4]  +  m[6] * o.m[5]  +  m[10] * o.m[6]  +  m[14] * o.m[7];
@@ -1085,6 +1157,7 @@ static bool rx_load_png(std::string filepath,
  template<class T>
    Matrix4<T> Matrix4<T>::operator * (const Matrix4<T>& o) const {
    Matrix4<T> r;
+
    r.m[0]  =  m[0] * o.m[0]  +  m[4] * o.m[1]  +  m[8]  * o.m[2]  +  m[12] * o.m[3];
    r.m[1]  =  m[1] * o.m[0]  +  m[5] * o.m[1]  +  m[9]  * o.m[2]  +  m[13] * o.m[3];
    r.m[2]  =  m[2] * o.m[0]  +  m[6] * o.m[1]  +  m[10] * o.m[2]  +  m[14] * o.m[3];
@@ -1110,15 +1183,17 @@ static bool rx_load_png(std::string filepath,
 template<class T>
 Matrix4<T>& Matrix4<T>::lookAt(Vec3<T> pos, Vec3<T> target, Vec3<T> up) {
 
-  Vec3<T> ax_z = normalized(pos - target);
-  Vec3<T> ax_x = normalized(cross(ax_z, up));
-  Vec3<T> ax_y = cross(ax_z, ax_x);
+  Vec3<T> f = normalized(target - pos);
+  Vec3<T> u = normalized(up);
+  Vec3<T> s = normalized(cross(f, u));
+  u = cross(s, f);
 
-  m[0] = ax_x.x;  m[4] = ax_x.y;  m[8] = ax_x.z;   
-  m[1] = ax_y.x;  m[5] = ax_y.y;  m[9] = ax_y.z;   
-  m[2] = ax_z.x;  m[6] = ax_z.y;  m[10] = ax_z.z;
+  m[0] =  s.x;  m[4] =  s.y;  m[8] = s.z;   
+  m[1] =  u.x;  m[5] =  u.y;  m[9] = u.z;   
+  m[2] = -f.x;  m[6] = -f.y;  m[10] = -f.z;
   
   translate(-pos);
+
   return *this ;
 }
 
@@ -1427,6 +1502,28 @@ inline float Perlin::noise2D(float vec[2]) {
   return result;
 }
 
+
+#if defined(ROXLU_USE_OPENGL)
+
+struct VertexP {
+  VertexP(){};
+  VertexP(vec3 p):pos(p){}
+  void set(vec3 p) { pos = p; } 
+  float* ptr() { return pos.ptr(); } 
+  vec3 pos;
+};
+
+struct VertexPT {
+  VertexPT(){}
+  VertexPT(vec3 p, vec2 t):pos(p),tex(t){}
+  void set(vec3 p, vec2 t) { pos = p; tex = t; } 
+  float* ptr() { return pos.ptr(); } 
+  void print() { printf("x: %f, y: %f, z: %f, u: %f, v: %f\n", pos.x, pos.y, pos.z, tex.x, tex.y); } 
+  vec3 pos;
+  vec2 tex;
+};
+
+#endif
 
 #endif // ROXLU_USE_MATH
 
