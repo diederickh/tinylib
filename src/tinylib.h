@@ -79,10 +79,10 @@
     
       mat4
       ------------------------------------------------------------------------------
-      mat4& mat4.rotateX(degrees)
-      mat4& mat4.rotateY(degrees)
-      mat4& mat4.rotateZ(degrees)
-      mat4& mat4.rotate(degrees, x, y, z)
+      mat4& mat4.rotateX(rad)
+      mat4& mat4.rotateY(rad)
+      mat4& mat4.rotateZ(rad)
+      mat4& mat4.rotate(rad, x, y, z)
       mat4& mat4.scale(x, y, z)
       mat4& mat4.translate(x, y, z)
       mat4& mat4.translate(vec3 v)
