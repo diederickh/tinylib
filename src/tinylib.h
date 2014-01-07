@@ -55,7 +55,7 @@
   rx_to_int("10");                    - convert a string to integer
   rx_to_data_path("filename.txt")     - convert the given filename to the data dir
   rx_is_dir("path")                   - returns true when the path is a dir
-
+  rx_hrtim()                          - high resolution timer (time in nano sec)
 
   MATH - define `ROXLU_USE_MATH` before including. 
   ===================================================================================
@@ -466,6 +466,41 @@ static float rx_to_float(const std::string& v) {
   ss >> r;
   return r;
 }
+
+// see: https://github.com/joyent/libuv/blob/master/src/unix/linux-core.c uv__hrtime()
+static uint64_t rx_hrtime() {
+#if defined(__APPLE__) 
+  mach_timebase_info_data_t info;
+  if(mach_timebase_info(&info) != KERN_SUCCESS) {
+    abort();
+  }
+  return mach_absolute_time() * info.numer / info.denom;
+
+#elif defined(__linux)
+  static clock_t fast_clock_id = -1;
+  struct timespec t;
+  clock_t clock_id;
+
+  if(fast_lock_id == -1) {
+    if(clock_getres(CLOCK_MONOTONIC_COARSE, &t) == 0 && t.tv_nsec <= 1 * 1000 * 1000LLU) {
+      fast_clock_id = CLOCK_MONOTONIC_COARSE;
+    }
+    else {
+      fast_clock_id = CLOCK_MONOTONIC;
+    }
+  }
+
+  clock_id =  CLOCK_MONOTONIC;
+  if(clock_gettime(clock_id, &t)) {
+    return 0; 
+  }
+  return t.tv_sec * (uint64_t)1e9 +t.tv_nsec;
+  
+#  error "Need to implement rx_hrtime() for linux"
+#elif defined(_WIN32)
+#  error "Need to implement rx_hrtime() for win"
+#endif
+};
 
 
 #if defined(ROXLU_USE_PNG)
