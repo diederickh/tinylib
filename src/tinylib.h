@@ -39,13 +39,17 @@
   rx_uniform_mat4fv(prog, name, count, trans, ptr)      - set a mat4fv
   VertexP                                               - vertex type for position data
   VertexPT                                              - vertex type for position and texture coord data
-
+  VertexPTN                                             - vertex type for position, texture and normal
+  VertexPN                                              - vertex type for position and normals
+  OBJ                                                   - class to load OBJ files
+  OBJ.load(filepath)                                    - load the .obj file, returns boolean
+  OBJ.hasNormals()                                      - returns true if the loaded obj has normals
+  OBJ.hasTexCoords()                                    - returns true if the loaded obj had texcoords
 
   IMAGES - define `ROXLU_USE_PNG` before including
   ===================================================================================
   rx_save_png("filename.png", pixels, 640, 480, 3);            - writes a png using lib png
   rx_load_png("filepath.png", &pix, width, height, nchannels)  - load the pixels, width, height and nchannels for the given filepath. make sure to delete pix (which is unsigned char*)
-
 
   UTILS
   ===================================================================================
@@ -86,11 +90,12 @@
     
       mat4
       ------------------------------------------------------------------------------
-      mat4& mat4.rotateX(degrees)
-      mat4& mat4.rotateY(degrees)
-      mat4& mat4.rotateZ(degrees)
-      mat4& mat4.rotate(degrees, x, y, z)
+      mat4& mat4.rotateX(rad)
+      mat4& mat4.rotateY(rad)
+      mat4& mat4.rotateZ(rad)
+      mat4& mat4.rotate(rad, x, y, z)
       mat4& mat4.scale(x, y, z)
+      mat4& mat4.scale(s)
       mat4& mat4.translate(x, y, z)
       mat4& mat4.translate(vec3 v)
       mat4& mat4.ortho(l, r, b, t, n , f)
@@ -124,6 +129,7 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <vector>
 
 #if defined(_WIN32)
 #elif defined(__APPLE__)
@@ -208,6 +214,11 @@
 
 #if defined(ROXLU_USE_PNG) 
 static bool rx_load_png(std::string filepath, unsigned char** pixels, int& w, int& h, int& nchannels);
+
+#  if defined(ROXLU_USE_OPENGL)
+   static GLuint rx_create_texture(std::string filepath, int internalFormat = -1, int format = -1, int type = -1);
+#  endif
+
 #endif
 
 #if defined(ROXLU_USE_OPENGL)
@@ -295,8 +306,8 @@ static void rx_uniform_mat4fv(GLuint prog, std::string name, GLsizei count, GLbo
 }
 
 #if defined(ROXLU_USE_PNG)
-static GLuint rx_create_texture(std::string filepath) {
-   
+static GLuint rx_create_texture(std::string filepath, int internalFormat, int format, int type) {
+
   int w, h, n;
   unsigned char* pix;
  
@@ -305,16 +316,40 @@ static GLuint rx_create_texture(std::string filepath) {
     ::exit(EXIT_FAILURE);
   }
  
-  GLuint tex;
-  GLenum format = GL_RGB;
- 
-  if(n == 4) {
-    format = GL_RGBA;
+  if(format == -1) {
+    switch(n) { 
+      case 1: format = GL_RED;  break;
+      case 2: format = GL_RG;   break;
+      case 3: format = GL_RGB;  break;
+      case 4: format = GL_RGBA; break;
+      default: {
+        printf("Unhandled number of channels for texture :%d\n", n); 
+        ::exit(EXIT_FAILURE);
+      }
+    }
   }
- 
+
+  if(internalFormat == -1) {
+    switch(n) { 
+      case 1: internalFormat = GL_R8;    break;
+      case 2: internalFormat = GL_RG8;   break;
+      case 3: internalFormat = GL_RGB8;  break;
+      case 4: internalFormat = GL_RGBA8; break;
+      default: {
+        printf("Unhandled number of channels for texture :%d\n", n); 
+        ::exit(EXIT_FAILURE);
+      }
+    }
+  }
+
+  if(type == -1) {
+    type = GL_UNSIGNED_BYTE;
+  }
+
+  GLuint tex;
   glGenTextures(1, &tex);
   glBindTexture(GL_TEXTURE_2D, tex);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, format, GL_UNSIGNED_BYTE, pix);
+  glTexImage2D(GL_TEXTURE_2D, 0, (GLenum)internalFormat, w, h, 0, (GLenum)format, (GLenum)type, pix);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -324,7 +359,7 @@ static GLuint rx_create_texture(std::string filepath) {
   pix = NULL;
   return tex;
 }
-#endif
+#endif // nested ROXLU_USE_PNG
 
 #endif // ROXLU_USE_OPENGL
 
@@ -965,6 +1000,7 @@ static bool rx_load_png(std::string filepath,
    Matrix4<T>& translate(T x, T y, T z);
    Matrix4<T>& translate(const Vec3<T>& v) { return translate(v.x, v.y, v.z); } 
    Matrix4<T>& scale(T x, T y, T z);
+   Matrix4<T>& scale(T s) { return scale(s, s, s); } 
    Matrix4<T>& perspective(T fovDegrees, T aspect, T n, T f);
    Matrix4<T>& ortho(T l, T r, T b, T t, T n, T f);
    Matrix4<T>& frustum(T l, T r, T b, T t, T n, T f);
@@ -1537,8 +1573,9 @@ inline float Perlin::noise2D(float vec[2]) {
   return result;
 }
 
+#endif // ROXLU_USE_MATH
 
-#if defined(ROXLU_USE_OPENGL)
+#if defined(ROXLU_USE_OPENGL) && defined(ROXLU_USE_MATH)
 
 struct VertexP {
   VertexP(){};
@@ -1558,9 +1595,178 @@ struct VertexPT {
   vec2 tex;
 };
 
-#endif
 
-#endif // ROXLU_USE_MATH
+struct VertexPTN {
+  VertexPTN() {}
+  VertexPTN(vec3 p, vec2 t, vec3 n):pos(p),tex(t),norm(n){}
+  void set(vec3 p, vec2 t, vec3 n) { pos = p; tex = t; norm = n; } 
+  float* ptr() { return pos.ptr(); } 
+  vec3 pos;
+  vec2 tex;
+  vec3 norm;
+};
+
+struct VertexPN {
+  VertexPN();
+  VertexPN(vec3 p, vec3 n):pos(p),norm(n){}
+  void set(vec3 p, vec3 n) { pos = p; norm = n; }
+  float* ptr() { return pos.ptr(); }
+  vec3 pos;
+  vec3 norm;
+};
+
+// OBJ: super basic OBJ file loader
+class OBJ {
+ public:
+  struct TRI { int v, t, n; };
+  struct FACE { TRI a, b, c; };
+  struct XYZ {  float x, y, z; };
+  struct TEXCOORD { float s, t; };
+
+  bool load(std::string filepath);
+
+  bool hasNormals();
+  bool hasTexCoords();
+
+  template<class T>
+    bool copy(T& result);
+
+  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexP>& verts);
+  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPTN>& verts);
+  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPT>& verts);
+  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPN>& verts);
+
+ public:
+  std::vector<vec3> vertices;
+  std::vector<vec3> normals;
+  std::vector<vec2> tex_coords;
+  std::vector<OBJ::FACE> faces;
+  std::vector<int> indices;
+  bool has_texcoords;
+  bool has_normals;
+};
+
+template<class T>
+inline bool OBJ::copy(T& result) {
+  for(std::vector<FACE>::iterator it = faces.begin(); it != faces.end(); ++it) {
+    FACE& f = *it;
+    push_back(vertices[f.a.v], normals[f.a.n], tex_coords[f.a.t], result) ;
+    push_back(vertices[f.b.v], normals[f.b.n], tex_coords[f.b.t], result) ;
+    push_back(vertices[f.c.v], normals[f.c.n], tex_coords[f.c.t], result) ;
+  }
+  return true;
+}
+
+inline void OBJ::push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexP>& verts) {
+  verts.push_back(VertexP(vert));
+}
+
+inline void OBJ::push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPTN>& verts) {
+  verts.push_back(VertexPTN(vert, tc, norm));
+}
+
+inline void OBJ::push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPT>& verts) {
+  verts.push_back(VertexPT(vert, tc));
+}
+
+inline void OBJ::push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPN>& verts) {
+  verts.push_back(VertexPN(vert, norm));
+}
+
+inline bool OBJ::hasNormals() {
+  return has_normals;
+}
+ 
+inline bool OBJ::hasTexCoords() {
+  return has_texcoords;
+}
+
+inline bool OBJ::load(std::string filepath) {
+
+  // are unset below
+  has_normals = true;
+  has_texcoords = true;
+
+  std::ifstream ifs;
+  ifs.open(filepath.c_str());
+  if(!ifs.is_open()) {
+    printf("Error: Cannot find .obj file: %s\n", filepath.c_str());
+    return false;
+  }
+
+  char c;
+  std::string line;
+  while(std::getline(ifs, line)) {
+    std::stringstream ss(line);
+    ss >> c;
+    if(c == 'v') {
+      if(line[1] == ' ') {
+        vec3 p;
+        ss >> p.x >> p.y >> p.z;
+        vertices.push_back(p);
+      }
+      else if(line[1] == 'n') {
+        vec3 p;
+        ss >> c;
+        ss >> p.x >> p.y >> p.z;
+        normals.push_back(p);
+      }
+      else if (line[1] == 't') {
+        vec2 t;
+        ss >> c;
+        ss >> t.x >> t.y;
+        t.y = 1.0f - t.y;
+        tex_coords.push_back(t);
+      }
+    }
+    else if(c == 'f') {
+      std::string part;
+      std::vector<OBJ::TRI> tris;
+      while(ss >> part) {
+        std::stringstream fss;
+        std::string indices[3];
+        int dx = 0;
+        for(int i = 0; i < part.size(); ++i) {
+          if(part[i] == '/') {
+            dx++;
+            continue;
+          }
+          indices[dx].push_back(part[i]);
+        }
+        TRI tri;
+        tri.v = atoi(indices[0].c_str()) - 1;
+        tri.t = atoi(indices[1].c_str()) - 1;
+        tri.n = atoi(indices[2].c_str()) - 1;
+        tris.push_back(tri);
+      }
+      if(tris.size() == 3) {
+        OBJ::FACE face;
+        face.a = tris[0];
+        face.b = tris[1];
+        face.c = tris[2];
+        faces.push_back(face);
+      }
+      else {
+        printf("Error: wrong face indices.\n");
+      }
+    }
+  }
+
+  // create empty texcoords/normals when not found so we just return invalid values but wont crash
+  if(!normals.size()) {
+    normals.assign(vertices.size(), vec3());
+    has_normals = false;
+  }
+  if(!tex_coords.size()) {
+    tex_coords.assign(vertices.size(), vec2());
+    has_texcoords = false;
+  }
+    
+  return true;
+} // OBJ::load
+
+
+#endif // ROXLU_USE_OPENGL && ROXLU_USE_MATH
 
 
  // ----------------------------------------------------------------------------
