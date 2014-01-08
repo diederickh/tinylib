@@ -39,6 +39,7 @@
   rx_uniform_mat4fv(prog, name, count, trans, ptr)      - set a mat4fv
   VertexP                                               - vertex type for position data
   VertexPT                                              - vertex type for position and texture coord data
+  VertexPT3                                             - vertex type for position and texture coord with 3 elements (a q for projective mapping)
   VertexPTN                                             - vertex type for position, texture and normal
   VertexPN                                              - vertex type for position and normals
   OBJ                                                   - class to load OBJ files
@@ -59,7 +60,8 @@
   rx_to_int("10");                    - convert a string to integer
   rx_to_data_path("filename.txt")     - convert the given filename to the data dir
   rx_is_dir("path")                   - returns true when the path is a dir
-  rx_hrtim()                          - high resolution timer (time in nano sec)
+  rx_hrtime()                         - high resolution timer (time in nano sec)
+  rx_millis()                         - returns the elapsed millis since the first call as float, 1000 millis returns 1.0
 
   MATH - define `ROXLU_USE_MATH` before including. 
   ===================================================================================
@@ -86,7 +88,8 @@
 
       vec3
       -----------------------------------------------------------------------------
-      vec3 perpendicular(a)   - get a perpendicular vector from the given vec, this vector doesn't have to be normalized!, based on http://lolengine.net/blog/2013/09/21/picking-orthogonal-vector-combing-coconuts 
+      vec3 perpendicular(a)              - get a perpendicular vector from the given vec, this vector doesn't have to be normalized!, based on http://lolengine.net/blog/2013/09/21/picking-orthogonal-vector-combing-coconuts 
+      bool intersect(a,b,c,d, &result)   - checks if two lines intersect line (b-a) and (d-c). resturns true when they intersect and it will set result to the intersection point
     
       mat4
       ------------------------------------------------------------------------------
@@ -537,6 +540,11 @@ static uint64_t rx_hrtime() {
 #endif
 };
 
+static float rx_millis() {
+  static uint64_t start = rx_hrtime();
+  int64_t d = (rx_hrtime() - start);
+  return d / 1000000000.0;
+}
 
 #if defined(ROXLU_USE_PNG)
 // write an w*h array of pixels to a png file
@@ -919,11 +927,31 @@ static bool rx_load_png(std::string filepath,
    friend Vec3<T> cross(const Vec3<T> &a, const Vec3<T> &b) { return Vec3<T>(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }
    friend Vec3<T> perpendicular(const Vec3<T>& v) {  return abs(v.x) > abs(v.z) ? Vec3(-v.y, v.x, 0.0) : Vec3(0.0, -v.z, v.y); }
 
+
    void print() { printf("x: %f, y: %f, z: %f\n", x, y, z); } 
 
  public:
    T x, y, z;
  };
+
+// lines must ly in the xy-plane; only done in 2d
+template<class T>
+inline bool intersect(const Vec3<T>& p0, const Vec3<T>& p1, const Vec3<T>& p2, const Vec3<T>& p3, Vec3<T>& result) {
+  Vec3<T> s1 = p1 - p0;
+  Vec3<T> s2 = p3 - p2;
+
+  float s, t;
+  s = (-s1.y * (p0.x - p2.x) + s1.x * (p0.y - p2.y)) / (-s2.x * s1.y + s1.x * s2.y);
+  t = ( s2.x * (p0.y - p2.y) - s2.y * (p0.x - p2.x)) / (-s2.x * s1.y + s1.x * s2.y);
+
+  if(s >= 0.0f && s <= 1.0f && t >= 0.0f && t <= 1.0f) {
+    result.x = p0.x + (t * s1.x);
+    result.y = p0.y + (t * s1.y);
+    return true;
+  }
+
+  return false;
+}
 
  // ----------------------------------------------------------------------------------
 
@@ -1595,6 +1623,15 @@ struct VertexPT {
   vec2 tex;
 };
 
+struct VertexPT3 {
+  VertexPT3(){}
+  VertexPT3(vec3 p, vec3 t):pos(p),tex(t){}
+  void set(vec3 p, vec3 t) { pos = p; tex = t; } 
+  float* ptr() { return pos.ptr(); } 
+  void print() { printf("x: %f, y: %f, z: %f, u: %f, v: %f, q: %f\n", pos.x, pos.y, pos.z, tex.x, tex.y, tex.z); } 
+  vec3 pos;
+  vec3 tex;
+};
 
 struct VertexPTN {
   VertexPTN() {}
