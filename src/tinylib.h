@@ -26,10 +26,12 @@
   #define ROXLU_USE_MATH             - to use the vec2, vec3, vec4, mat4 classes
 
 
-  OPENGLR - define `ROXLU_USE_OPENGL` before including
+  OPENGL - define `ROXLU_USE_OPENGL` before including
   ===================================================================================
   rx_create_shader(GL_VERTEX_SHADER, source_char_p);    - create a shader, pass type
-  rx_create_program(vert, frag);                        - create a problem - DOES NOT LINK
+  rx_create_shader_from_file(GL_VERTEX_SHADER, path);   - create a shader from a file, give a full path, returns -1 on error
+  rx_create_program(vert, frag);                        - create a program - DOES NOT LINK
+  rx_create_program_with_attribs(vert, frag, 2, attr);  - create a program with attribs + LINKS THE PROGRAM
   rx_print_shader_link_info(prog)                       - print the program link info
   rx_print_shader_compile_info(vert)                    - print the shader compile info
   rx_create_texture(filepath)                           - loads a png and creates a texture (only when png is enabled)  
@@ -37,15 +39,27 @@
   rx_uniform_1i(prog, name, value)                      - set a 1i value
   rx_uniform_1f(prog, name, value)                      - set a flow value
   rx_uniform_mat4fv(prog, name, count, trans, ptr)      - set a mat4fv
-  VertexP                                               - vertex type for position data
-  VertexPT                                              - vertex type for position and texture coord data
-  VertexPT3                                             - vertex type for position and texture coord with 3 elements (a q for projective mapping)
-  VertexPTN                                             - vertex type for position, texture and normal
-  VertexPN                                              - vertex type for position and normals
-  OBJ                                                   - class to load OBJ files
-  OBJ.load(filepath)                                    - load the .obj file, returns boolean
-  OBJ.hasNormals()                                      - returns true if the loaded obj has normals
-  OBJ.hasTexCoords()                                    - returns true if the loaded obj had texcoords
+
+  Shader                                                                    - represents a GL shader; only works with files! 
+  Shader.load(type, filepath)                                               - load the source for the shader from file 
+  Shader.compile()                                                          - compiles the shader
+
+  Program                                                                   - represents a GL program 
+  Program.add(Shader)                                                       - add a already compiled shader to the program
+  Program.create(type, filepath, extra)                                     - create a Shader for the given filepath. extra is extra source code that gets prepended. 
+  Program.link(nattribs, char** attribs, int nfrags, const char** frags)    - link + bind the attrib locations and/or fragment locations
+  Program.recompile()                                                       - recompiles the shader and links the program again
+
+  VertexP                                                                   - vertex type for position data
+  VertexPT                                                                  - vertex type for position and texture coord data
+  VertexPT3                                                                 - vertex type for position and texture coord with 3 elements (a q for projective mapping)
+  VertexPTN                                                                 - vertex type for position, texture and normal
+  VertexPN                                                                  - vertex type for position and normals
+
+  OBJ                                                                       - class to load OBJ files
+  OBJ.load(filepath)                                                        - load the .obj file, returns boolean
+  OBJ.hasNormals()                                                          - returns true if the loaded obj has normals
+  OBJ.hasTexCoords()                                                        - returns true if the loaded obj had texcoords
 
   IMAGES - define `ROXLU_USE_PNG` before including
   ===================================================================================
@@ -224,147 +238,7 @@ static bool rx_load_png(std::string filepath, unsigned char** pixels, int& w, in
 
 #endif
 
-#if defined(ROXLU_USE_OPENGL)
 
-static void rx_print_shader_link_info(GLuint shader) {
-  GLint status = 0;
-  GLint count = 0;
-  GLchar* error = NULL;
-  GLsizei nchars = 0;
-  glGetProgramiv(shader, GL_LINK_STATUS, &status);
-  if(!status) {
-    glGetProgramiv(shader, GL_INFO_LOG_LENGTH, &count);
-    if(count > 0) {
-      error = new GLchar[count];
-      glGetProgramInfoLog(shader, 2048, &nchars, error);
-      printf("------\n");
-      printf("%s\n", error);
-      printf("------\n");
-      delete[] error;
-      error = NULL;
-      assert(0);
-    }
-  }
-}
-  
-static void rx_print_shader_compile_info(GLuint shader) {
-  GLint status = 0;
-  GLint count = 0;
-  GLchar* error = NULL;
-  glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-  if(!status) {
-    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &count);
-    if(count > 0) {
-      error = new GLchar[count];
-      glGetShaderInfoLog(shader, count, NULL, error);
-      printf("------\n");
-      printf("%s\n", error);
-      printf("------\n");
-      delete[] error;
-      error = NULL;
-      assert(0);
-    }
-  }
-}
-  
-static GLuint rx_create_program(GLuint vert, GLuint frag) {
-  GLuint prog = glCreateProgram();
-  glAttachShader(prog, vert);
-  glAttachShader(prog, frag);
-  return prog;
-}
-  
-static GLuint rx_create_shader(GLenum type, const char* src) {
-  GLuint s = glCreateShader(type);
-  glShaderSource(s, 1, &src,  NULL);
-  glCompileShader(s);
-  rx_print_shader_compile_info(s);
-  return s;
-}
-
-static GLint rx_get_uniform_location(GLuint prog, std::string name) {
-#if !defined(NDEBUG)
-  GLint loc = glGetUniformLocation(prog, name.c_str());
-  if(loc < 0) {
-    printf("Error: cannot find the uniform: %s\n", name.c_str());
-    ::exit(EXIT_FAILURE);
-  }
-#else
-  GLint loc = glGetUniformLocation(prog, name.c_str());
-#endif
-  
-  return loc;
-}
-
-static void rx_uniform_1i(GLuint prog, std::string name, GLint v) {
-  glUniform1i(rx_get_uniform_location(prog, name), v);
-}
-
-static void rx_uniform_1f(GLuint prog, std::string name, GLfloat v) {
-  glUniform1f(rx_get_uniform_location(prog, name), v);
-}
-
-static void rx_uniform_mat4fv(GLuint prog, std::string name, GLsizei count, GLboolean transpose, const GLfloat* value) {
-  glUniformMatrix4fv(rx_get_uniform_location(prog, name), count, transpose, value);
-}
-
-#if defined(ROXLU_USE_PNG)
-static GLuint rx_create_texture(std::string filepath, int internalFormat, int format, int type) {
-
-  int w, h, n;
-  unsigned char* pix;
- 
-  if(!rx_load_png(filepath, &pix, w, h, n)) {
-    printf("Error: cannot find: %s\n", filepath.c_str());
-    ::exit(EXIT_FAILURE);
-  }
- 
-  if(format == -1) {
-    switch(n) { 
-      case 1: format = GL_RED;  break;
-      case 2: format = GL_RG;   break;
-      case 3: format = GL_RGB;  break;
-      case 4: format = GL_RGBA; break;
-      default: {
-        printf("Unhandled number of channels for texture :%d\n", n); 
-        ::exit(EXIT_FAILURE);
-      }
-    }
-  }
-
-  if(internalFormat == -1) {
-    switch(n) { 
-      case 1: internalFormat = GL_R8;    break;
-      case 2: internalFormat = GL_RG8;   break;
-      case 3: internalFormat = GL_RGB8;  break;
-      case 4: internalFormat = GL_RGBA8; break;
-      default: {
-        printf("Unhandled number of channels for texture :%d\n", n); 
-        ::exit(EXIT_FAILURE);
-      }
-    }
-  }
-
-  if(type == -1) {
-    type = GL_UNSIGNED_BYTE;
-  }
-
-  GLuint tex;
-  glGenTextures(1, &tex);
-  glBindTexture(GL_TEXTURE_2D, tex);
-  glTexImage2D(GL_TEXTURE_2D, 0, (GLenum)internalFormat, w, h, 0, (GLenum)format, (GLenum)type, pix);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
- 
-  delete[] pix;
-  pix = NULL;
-  return tex;
-}
-#endif // nested ROXLU_USE_PNG
-
-#endif // ROXLU_USE_OPENGL
 
 // UTILS
 // ---------------------------------------------------------------------------
@@ -546,9 +420,383 @@ static float rx_millis() {
   return d / 1000000000.0;
 }
 
+static std::string rx_read_file(std::string filepath) {
+  std::ifstream ifs(filepath.c_str(), std::ios::in);
+  if(!ifs.is_open()) {
+    return "";
+  }
+  std::string str((std::istreambuf_iterator<char>(ifs)) , std::istreambuf_iterator<char>());
+  return str;
+}
+
+#if defined(ROXLU_USE_OPENGL)
+
+static void rx_print_shader_link_info(GLuint shader) {
+  GLint status = 0;
+  GLint count = 0;
+  GLchar* error = NULL;
+  GLsizei nchars = 0;
+  glGetProgramiv(shader, GL_LINK_STATUS, &status);
+  if(!status) {
+    glGetProgramiv(shader, GL_INFO_LOG_LENGTH, &count);
+    if(count > 0) {
+      error = new GLchar[count];
+      glGetProgramInfoLog(shader, 2048, &nchars, error);
+      printf("------\n");
+      printf("%s\n", error);
+      printf("------\n");
+      delete[] error;
+      error = NULL;
+      assert(0);
+    }
+  }
+}
+  
+static void rx_print_shader_compile_info(GLuint shader) {
+  GLint status = 0;
+  GLint count = 0;
+  GLchar* error = NULL;
+  glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+  if(!status) {
+    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &count);
+    if(count > 0) {
+      error = new GLchar[count];
+      glGetShaderInfoLog(shader, count, NULL, error);
+      printf("------\n");
+      printf("%s\n", error);
+      printf("------\n");
+      delete[] error;
+      error = NULL;
+      assert(0);
+    }
+  }
+}
+  
+static GLuint rx_create_program(GLuint vert, GLuint frag) {
+  GLuint prog = glCreateProgram();
+  glAttachShader(prog, vert);
+  glAttachShader(prog, frag);
+  return prog;
+}
+  
+static GLuint rx_create_shader(GLenum type, const char* src) {
+  GLuint s = glCreateShader(type);
+  glShaderSource(s, 1, &src,  NULL);
+  glCompileShader(s);
+  rx_print_shader_compile_info(s);
+  return s;
+}
+
+static int rx_create_shader_from_file(GLenum type, std::string filepath) {
+
+  std::string source = rx_read_file(filepath);
+  if(!source.size()) {
+    printf("Error: cannot open the shader source: %s\n", filepath.c_str());
+    return -1;
+  }
+  
+  return rx_create_shader(type, source.c_str());
+}
+
+static GLuint rx_create_program_with_attribs(GLuint vert, 
+                                             GLuint frag, 
+                                             int nattribs, 
+                                             const char** attribs) 
+{
+  GLuint prog = rx_create_program(vert, frag);
+  
+  if(attribs) {
+    for(int i = 0; i < nattribs; ++i) {
+      glBindAttribLocation(prog, i, attribs[i]);
+    }
+  }
+
+  glLinkProgram(prog);
+  rx_print_shader_link_info(prog);
+
+  return prog;
+}
+
+
+static GLint rx_get_uniform_location(GLuint prog, std::string name) {
+#if !defined(NDEBUG)
+  GLint loc = glGetUniformLocation(prog, name.c_str());
+  if(loc < 0) {
+    printf("Error: cannot find the uniform: %s\n", name.c_str());
+    ::exit(EXIT_FAILURE);
+  }
+#else
+  GLint loc = glGetUniformLocation(prog, name.c_str());
+#endif
+  
+  return loc;
+}
+
+static void rx_uniform_1i(GLuint prog, std::string name, GLint v) {
+  glUniform1i(rx_get_uniform_location(prog, name), v);
+}
+
+static void rx_uniform_1f(GLuint prog, std::string name, GLfloat v) {
+  glUniform1f(rx_get_uniform_location(prog, name), v);
+}
+
+static void rx_uniform_mat4fv(GLuint prog, 
+                              std::string name, 
+                              GLsizei count, 
+                              GLboolean transpose, 
+                              const GLfloat* value) 
+{
+  glUniformMatrix4fv(rx_get_uniform_location(prog, name), count, transpose, value);
+}
+
+class Shader {                                                 /* represents a GL shader - works only with shaders loaded from file */
+ public:      
+  Shader():type(-1),id(-1){}
+  ~Shader() {}                                                 /* @todo - we should clean the resources here */
+  Shader& load(GLenum type, std::string filepath,              /* load a shader file for the given type */
+               std::string extra = "");                        /* you can pass extra data to the shader which is prepended */
+  Shader& reload();                                            /* reload the previously loaded file */
+  Shader& compile();                                           /* compile the shader */
+
+ public:
+  std::string filepath;                                        /* filepath to the shader */
+  std::string file_source;                                     /* the source we loaded() */
+  std::string extra_source;                                    /* source of the shader that is loaded */
+  int type;                                                    /* the shader type, eg. GL_VERTEX_SHADER */
+  int id;                                                      /* the ID of the shader */
+};
+
+class Program {
+ public:
+  Program():id(-1){};
+  ~Program();                                                    /* @todo - we should clean the resources here */
+  Program& add(Shader* s);                                       /* add a shader when you want to have ownership; you don't need to compile() it yourself */
+  Program& create(GLenum type, std::string filepath,             /* create a shader and add it, we take ownership */
+                  std::string extra = "");                       /* you can pass extra data to the shader, which is prepended */
+  Program& link(int nattribs = 0, const char** attribs = NULL,   /* compiles + links the shaders, if you want to bind attrib or frag locations pass them */
+                int nfrags = 0, const char** frags = NULL);      /* the output frag locations */
+  Program& recompile();                                          /* recompiles the shaders  + LINKS it for you! */
+
+ public:
+  std::vector<std::string> attribs;                              /* any attributes added to link() */
+  std::vector<std::string> frags;                                /* output fragment locations */
+  std::vector<Shader*> shaders;                                  /* the added shaders */
+  std::vector<Shader*> created_shaders;                          /* allocated shaders; we have ownership, see create() */
+  int id;
+};
+
+
+inline Program::~Program() {
+  for(std::vector<Shader*>::iterator it = created_shaders.begin(); it != created_shaders.end(); ++it) {
+    delete *it;
+  }
+  shaders.clear();
+  created_shaders.clear();
+}
+
+inline Program& Program::add(Shader* s) {
+
+  if(id < 0) {
+    id = glCreateProgram();
+  }
+
+  s->compile();
+
+  if(s->id < 0) {
+      printf("Error: a shader is not compiled yet!\n");
+      ::exit(EXIT_FAILURE);
+  }
+
+  glAttachShader(id, s->id);
+  
+  shaders.push_back(s);
+  return *this;
+}
+
+inline Program& Program::create(GLenum type, 
+                                std::string filepath, 
+                                std::string extraSource) 
+{
+  Shader* s = new Shader();
+  s->load(type, filepath, extraSource);
+  created_shaders.push_back(s);
+  return add(s);
+}
+
+inline Program& Program::link(int nattribs, 
+                              const char** atts, 
+                              int nfrags, 
+                              const char** fraglocs) 
+{
+
+  if(id < 0) {
+    printf("Error: first add a shader before linking.\n");
+    ::exit(EXIT_FAILURE);
+  }
+
+  if(nattribs) {
+    attribs.clear();
+    
+    for(int i = 0; i < nattribs; ++i) {
+      glBindAttribLocation(id, i, atts[i]);
+      attribs.push_back(atts[i]);
+    }
+  }
+
+  if(nfrags) {
+    frags.clear();
+    for(int i = 0; i < nfrags; ++i) {
+      glBindFragDataLocation(id, i, fraglocs[i]);
+      frags.push_back(fraglocs[i]);
+    }
+  }
+  
+  glLinkProgram(id);
+  rx_print_shader_link_info(id);
+
+  return *this;
+}
+
+inline Program& Program::recompile() {
+
+  if(id < 0) {
+    printf("Error: cannot recompile the program because we've not been created yet.\n");
+    ::exit(EXIT_FAILURE);
+  }
+
+  for(size_t i = 0; i < shaders.size(); ++i) {
+    shaders[i]->reload();
+    shaders[i]->compile();
+  }
+
+  for(size_t i = 0; i < attribs.size(); ++i) {
+    glBindAttribLocation(id, i, attribs[i].c_str());
+  }
+
+  for(size_t i = 0; i < frags.size(); ++i) {
+    glBindFragDataLocation(id, i, frags[i].c_str());
+  }
+
+  glLinkProgram(id);
+  rx_print_shader_link_info(id); 
+
+  return *this;
+}
+
+inline Shader& Shader::load(GLenum t, 
+                            std::string fp, 
+                            std::string extraSource)
+{
+
+  file_source = rx_read_file(fp);
+
+  if(!file_source.size()) {
+    printf("Error: cannot get contents for shader file: %s\n", fp.c_str());
+    ::exit(EXIT_FAILURE);
+  }
+
+  extra_source = extraSource;
+  filepath = fp;
+  type = t;
+  return *this;
+}
+
+inline Shader& Shader::compile() {
+
+  if(id < 0) {
+    id = glCreateShader(type);
+  }
+  
+  if(!file_source.size()) {
+    printf("Error: The source of the shader is empty, cannot compile.\n");
+    ::exit(EXIT_FAILURE);
+  }
+
+  std::string combined_source = extra_source +"\n" +file_source;
+  const char* src = combined_source.c_str();
+
+  glShaderSource(id, 1, &src, NULL);
+  glCompileShader(id);
+  rx_print_shader_compile_info(id);
+  return *this;
+}
+
+inline Shader& Shader::reload() {
+  return load(type, filepath, extra_source);
+}
+
 #if defined(ROXLU_USE_PNG)
-// write an w*h array of pixels to a png file
-static bool rx_save_png(std::string filepath, unsigned char* pixels, int w, int h, int channels = 3) {
+
+static GLuint rx_create_texture(std::string filepath, 
+                                int internalFormat, 
+                                int format, 
+                                int type)
+{
+
+  int w, h, n;
+  unsigned char* pix;
+ 
+  if(!rx_load_png(filepath, &pix, w, h, n)) {
+    printf("Error: cannot find: %s\n", filepath.c_str());
+    ::exit(EXIT_FAILURE);
+  }
+ 
+  if(format == -1) {
+    switch(n) { 
+      case 1: format = GL_RED;  break;
+      case 2: format = GL_RG;   break;
+      case 3: format = GL_RGB;  break;
+      case 4: format = GL_RGBA; break;
+      default: {
+        printf("Unhandled number of channels for texture :%d\n", n); 
+        ::exit(EXIT_FAILURE);
+      }
+    }
+  }
+
+  if(internalFormat == -1) {
+    switch(n) { 
+      case 1: internalFormat = GL_R8;    break;
+      case 2: internalFormat = GL_RG8;   break;
+      case 3: internalFormat = GL_RGB8;  break;
+      case 4: internalFormat = GL_RGBA8; break;
+      default: {
+        printf("Unhandled number of channels for texture :%d\n", n); 
+        ::exit(EXIT_FAILURE);
+      }
+    }
+  }
+
+  if(type == -1) {
+    type = GL_UNSIGNED_BYTE;
+  }
+
+  GLuint tex;
+  glGenTextures(1, &tex);
+  glBindTexture(GL_TEXTURE_2D, tex);
+  glTexImage2D(GL_TEXTURE_2D, 0, (GLenum)internalFormat, w, h, 0, (GLenum)format, (GLenum)type, pix);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+ 
+  delete[] pix;
+  pix = NULL;
+  return tex;
+}
+#endif // nested ROXLU_USE_PNG
+
+#endif // ROXLU_USE_OPENGL
+
+
+#if defined(ROXLU_USE_PNG)
+
+static bool rx_save_png(std::string filepath, 
+                        unsigned char* pixels, 
+                        int w, 
+                        int h, 
+                        int channels = 3) 
+{
   
   if(!w || !h) {
     printf("error: cannot save png because the given width and height are invalid: %d x %d\n", w, h);
@@ -659,8 +907,7 @@ static bool rx_load_png(std::string filepath,
                         unsigned char** pixels,
                         int& width,
                         int& height,
-                        int& nchannels
-)
+                        int& nchannels)
 {
   png_structp png_ptr;
   png_infop info_ptr; 
@@ -730,62 +977,62 @@ static bool rx_load_png(std::string filepath,
   nchannels = png_get_channels(png_ptr, info_ptr);
     
   if(width == 0 || height == 0) {
-  png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-  fclose(fp);
-  fp = NULL;
-  return false;
-}
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+    fclose(fp);
+    fp = NULL;
+    return false;
+  }
   
   // @TODO - add option to allow input colors/gray values to be not converted
   switch(color_type) {
-  case PNG_COLOR_TYPE_PALETTE: {
-  png_set_palette_to_rgb(png_ptr);
-  nchannels = 3;
-  break;
-}
-  case PNG_COLOR_TYPE_GRAY: {
-  if(bit_depth < 8) {
-  png_set_expand_gray_1_2_4_to_8(png_ptr);
-  bit_depth = 8;
-}
-  break;
-}
-  default:break;
-};
+    case PNG_COLOR_TYPE_PALETTE: {
+      png_set_palette_to_rgb(png_ptr);
+      nchannels = 3;
+      break;
+    }
+    case PNG_COLOR_TYPE_GRAY: {
+      if(bit_depth < 8) {
+        png_set_expand_gray_1_2_4_to_8(png_ptr);
+        bit_depth = 8;
+      }
+      break;
+    }
+    default:break;
+  };
     
   // When transparency is set convert it to a full alpha channel
   if(png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) {
-  png_set_tRNS_to_alpha(png_ptr);
-  nchannels += 1;
-}
+    png_set_tRNS_to_alpha(png_ptr);
+    nchannels += 1;
+  }
   
   stride = width * bit_depth * nchannels / 8;  
   num_bytes = width * height * bit_depth * nchannels / 8;
   
   *pixels = new unsigned char[num_bytes];
   if(!pixels) {
-  printf("Error: image is to big: %s\n", filepath.c_str());
-  png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-  fclose(fp);
-  fp = NULL;
-  pixels = NULL;
-  return false;
-}
+    printf("Error: image is to big: %s\n", filepath.c_str());
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+    fclose(fp);
+    fp = NULL;
+    pixels = NULL;
+    return false;
+  }
   
   png_bytep* row_ptrs = new png_bytep[height];
   if(!row_ptrs) {
-  printf("Error: image is to big: %s\n", filepath.c_str());
-  png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-  fclose(fp);
-  fp = NULL;
-  delete[] *pixels;
-  pixels = 0;
-  return false;
-}
+    printf("Error: image is to big: %s\n", filepath.c_str());
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+    fclose(fp);
+    fp = NULL;
+    delete[] *pixels;
+    pixels = 0;
+    return false;
+  }
   
   for(size_t i = 0; i < height; ++i) {
-  row_ptrs[i] = (png_bytep)(*pixels) +(i * stride);
-}
+    row_ptrs[i] = (png_bytep)(*pixels) +(i * stride);
+  }
   
   png_read_image(png_ptr, row_ptrs);
   
@@ -796,28 +1043,20 @@ static bool rx_load_png(std::string filepath,
   return true;
 }
   
- static std::string rx_read_file(std::string filepath) {
-  std::ifstream ifs(filepath.c_str(), std::ios::in);
-  if(!ifs.is_open()) {
-  return "";
-}
-  std::string str((std::istreambuf_iterator<char>(ifs)) , std::istreambuf_iterator<char>());
-  return str;
-}
 #endif // ROXLU_USE_PNG
 
- // MATH
- // -------------------------------------------------------------------------
+// MATH
+// -------------------------------------------------------------------------
 #if defined(ROXLU_USE_MATH)
 
  template<class T>
    class Vec2 {
 
  public:
- Vec2() : x(), y() {}
- Vec2(T x, T y) : x(x), y(y) {}
- Vec2(const Vec2<T>& o) : x(o.x), y(o.y) {}
- Vec2(T f) : x(f), y(f) {}
+   Vec2() : x(), y() {}
+   Vec2(T x, T y) : x(x), y(y) {}
+   Vec2(const Vec2<T>& o) : x(o.x), y(o.y) {}
+   Vec2(T f) : x(f), y(f) {}
 
   void set(T vx, T vy) { x = vx; y = vy; } 
   T* ptr() { return &x; }
@@ -876,10 +1115,10 @@ static bool rx_load_png(std::string filepath,
    class Vec3 {
 
  public:
- Vec3() : x(), y(), z() {}
- Vec3(T x, T y, T z) : x(x), y(y), z(z) {}
- Vec3(const Vec3<T>& o) : x(o.x), y(o.y), z(o.z) {}
- Vec3(T f) : x(f), y(f), z(f) {}
+   Vec3() : x(), y(), z() {}
+   Vec3(T x, T y, T z) : x(x), y(y), z(z) {}
+   Vec3(const Vec3<T>& o) : x(o.x), y(o.y), z(o.z) {}
+   Vec3(T f) : x(f), y(f), z(f) {}
 
    void set(const float xv, const float yv, const float zv) { x = xv; y = yv; z = zv; }
    T* ptr() { return &x; }
@@ -959,10 +1198,10 @@ inline bool intersect(const Vec3<T>& p0, const Vec3<T>& p1, const Vec3<T>& p2, c
    class Vec4 {
 
  public:
- Vec4() : x(), y(), z(), w() {}
- Vec4(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) {}
- Vec4(const Vec4<T>& o) : x(o.x), y(o.y), z(o.z), w(o.w) {}
- Vec4(T f) : x(f), y(f), z(f), w(f) {}
+   Vec4() : x(), y(), z(), w() {}
+   Vec4(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) {}
+   Vec4(const Vec4<T>& o) : x(o.x), y(o.y), z(o.z), w(o.w) {}
+   Vec4(T f) : x(f), y(f), z(f), w(f) {}
 
    T* ptr() { return &x; }
    T& operator [](const unsigned int dx) { return *(&x + dx); } 
