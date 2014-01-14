@@ -35,9 +35,9 @@
   rx_print_shader_link_info(prog)                       - print the program link info
   rx_print_shader_compile_info(vert)                    - print the shader compile info
   rx_create_texture(filepath)                           - loads a png and creates a texture (only when png is enabled)  
-  rx_get_uniform_location(prog, name)                   - returns the location of the uniform but will exit when it can't find the uniform.
+  rx_get_uniform_location(prog, name)                   - returns the location of the uniform or returns -1 and logs something in debug mode
   rx_uniform_1i(prog, name, value)                      - set a 1i value
-  rx_uniform_1f(prog, name, value)                      - set a flow value
+  rx_uniform_1f(prog, name, value)                      - set a 1f value
   rx_uniform_mat4fv(prog, name, count, trans, ptr)      - set a mat4fv
 
   Shader                                                                    - represents a GL shader; only works with files! 
@@ -74,8 +74,26 @@
   rx_to_int("10");                    - convert a string to integer
   rx_to_data_path("filename.txt")     - convert the given filename to the data dir
   rx_is_dir("path")                   - returns true when the path is a dir
+
   rx_hrtime()                         - high resolution timer (time in nano sec)
   rx_millis()                         - returns the elapsed millis since the first call as float, 1000 millis returns 1.0
+  rx_strftime("%Y/%m%d/")             - strftime wrapper
+  rx_get_year()                       - get the current year as int, e.g. 2014
+  rx_get_month()                      - get the current month as int [00-11]
+  rx_get_day()                        - get the day of the month [00-31]
+  rx_get_hour()                       - get the hour of day [00-23]
+  rx_get_minute()                     - get the minuts of the hours, [00-59]
+
+  rx_rgb_to_hsv(r,g,b,h,s,v)          - convert rgb in range 0-1 to hsv in the same range. h,s,v are references
+  rx_rgb_to_hsv(rgb, hsv)             - convert given vector, hsv will be set (reference)
+  rx_rgb_to_hsv(rgb, float*)          - "", different typed parameters
+  rx_rgb_to_hsv(float*, float*)       - "", ""
+
+  rx_hsv_to_rgb(h,s,v,r,g,b)          - convert rgb to hsv all in 0-1 range. r,g,b will be set, are references
+  rx_hsv_to_rgb(hsv, rgb)             - convert rgb to hsv all in 0-1 rnage. rgb will be set, is a reference
+  rx_hsv_to_rgb(hsv, float*)          - "", "" 
+  rx_hsv_to_rgb(float,* float*)       - "", ""
+ 
 
   MATH - define `ROXLU_USE_MATH` before including. 
   ===================================================================================
@@ -379,6 +397,17 @@ static float rx_to_float(const std::string& v) {
   return r;
 }
 
+// split a string on the given delmiter
+static std::vector<std::string> rx_split(std::string str, char delim) {
+  std::string line;
+  std::stringstream ss(str);
+  std::vector<std::string> result;
+  while(std::getline(ss, line, delim)) {
+    result.push_back(line);
+  }
+  return result;
+}
+
 // see: https://github.com/joyent/libuv/blob/master/src/unix/linux-core.c uv__hrtime()
 static uint64_t rx_hrtime() {
 #if defined(__APPLE__) 
@@ -427,6 +456,37 @@ static std::string rx_read_file(std::string filepath) {
   }
   std::string str((std::istreambuf_iterator<char>(ifs)) , std::istreambuf_iterator<char>());
   return str;
+}
+
+static std::string rx_strftime(const std::string fmt) {
+  time_t t;
+  struct tm* info;
+  char buf[4096]; // must be enough..
+  time(&t);
+  info = localtime(&t);
+  strftime(buf, 4096, fmt.c_str(), info);
+  std::string result(buf);
+  return result;
+}
+
+static int rx_get_year() {
+  return rx_to_int(rx_strftime("%Y"));
+}
+
+static int rx_get_month() {
+ return rx_to_int(rx_strftime("%m"));
+}
+
+static int rx_get_day() {
+ return rx_to_int(rx_strftime("%d"));
+}
+
+static int rx_get_hour() {
+ return rx_to_int(rx_strftime("%H"));
+}
+
+static int rx_get_minute() {
+ return rx_to_int(rx_strftime("%M"));
 }
 
 #if defined(ROXLU_USE_OPENGL)
@@ -523,7 +583,6 @@ static GLint rx_get_uniform_location(GLuint prog, std::string name) {
   GLint loc = glGetUniformLocation(prog, name.c_str());
   if(loc < 0) {
     printf("Error: cannot find the uniform: %s\n", name.c_str());
-    ::exit(EXIT_FAILURE);
   }
 #else
   GLint loc = glGetUniformLocation(prog, name.c_str());
@@ -1555,6 +1614,65 @@ Matrix4<T>& Matrix4<T>::lookAt(Vec3<T> pos, Vec3<T> target, Vec3<T> up) {
    result = low + ((high-low) * rand()/(RAND_MAX + 1.0));
    return result;
  }
+
+// COLOR 
+// ----------------------------------------------------------------------------
+// all in range 0 - 1 
+
+static void rx_rgb_to_hsv(float r, float g, float b, float& h, float& s, float& v) {
+  float K = 0.f;
+
+  if(g < b) {
+    std::swap(g, b);
+    K = -1.f;
+  }
+
+  if(r < g) {
+      std::swap(r, g);
+      K = -2.f / 6.f - K;
+  }
+
+  float chroma = r - std::min(g, b);
+  h = fabs(K + (g - b) / (6.f * chroma + 1e-20f));
+  s = chroma / (r + 1e-20f);
+  v = r;
+}
+
+static void rx_rgb_to_hsv(vec3 rgb, vec3& hsv) {
+  rx_rgb_to_hsv(rgb.x, rgb.y, rgb.z, hsv.x, hsv.y, hsv.z);
+}
+
+static void rx_rgb_to_hsv(vec3 rgb, float* hsv) {
+  rx_rgb_to_hsv(rgb.x, rgb.y, rgb.z, hsv[0], hsv[1], hsv[2]);
+}
+
+static void rx_rgb_to_hsv(float* rgb, float* hsv) {
+ rx_rgb_to_hsv(rgb[0], rgb[1], rgb[2], hsv[0], hsv[1], hsv[2]);
+}
+
+// all in range 0 - 1, thanks to lolengine! (sam)
+static void rx_hsv_to_rgb(float h, float s, float v, float& r, float& g, float& b) {
+  float tmp_r = CLAMP((-1.0f + fabs(6.0f * h - 3.0f)), 0,1);
+  float tmp_g = CLAMP(( 2.0f - fabs(6.0f * h - 2.0f)), 0,1);      
+  float tmp_b = CLAMP(( 2.0f - fabs(6.0f * h - 4.0f)), 0,1);  
+  float p = 1.0f - s;  
+  r = v * (p + tmp_r * s);  
+  g = v * (p + tmp_g * s);    
+  b = v * (p + tmp_b * s);        
+}
+
+static void rx_hsv_to_rgb(vec3 hsv, vec3& rgb) {
+  rx_hsv_to_rgb(hsv.x, hsv.y, hsv.z, rgb.x, rgb.y, rgb.z);
+}
+
+static void rx_hsv_to_rgb(vec3 hsv, float* rgb) {
+  rx_hsv_to_rgb(hsv.x, hsv.y, hsv.z, rgb[0], rgb[1], rgb[2]);
+}
+
+static void rx_hsv_to_rgb(float* hsv, float* rgb) {
+  rx_hsv_to_rgb(hsv[0], hsv[1], hsv[2], rgb[0], rgb[1], rgb[2]);
+}
+
 
  // PERLIN
  // ----------------------------------------------------------------------------
