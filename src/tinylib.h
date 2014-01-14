@@ -172,10 +172,11 @@
 #include <vector>
 
 #if defined(_WIN32)
-#  define NOMINMAX
+//#  define NOMINMAX
 #  include <direct.h>
 #  include <Shlwapi.h>
 #  include <stdint.h>
+#  include <time.h>
 #  if defined(ROXLU_USE_OPENGL)
 #    include <GLXW/glxw.h>
 #  endif
@@ -201,7 +202,9 @@
 #  include <libgen.h>                               /* dirname() */
 #  include <sys/stat.h>
 #  include <stdarg.h>
-#  include <GLXW/glxw.h>
+#  if defined(ROXLU_USE_OPENGL)
+#     include <GLXW/glxw.h>
+#  endif
 #  define MAX_PATH 4096
 #endif
 
@@ -239,16 +242,16 @@
 #  define RAD_TO_DEG (180.0/PI)
 #endif
 
-#ifndef MIN
-#  define MIN(x,y) (((x) < (y)) ? (x) : (y))
+#ifndef LOWEST
+#  define LOWEST(x,y) (((x) < (y)) ? (x) : (y))
 #endif
 
-#ifndef MAX
-#  define MAX(x,y) (((x) > (y)) ? (x) : (y))
+#ifndef HEIGHEST
+#  define HEIGHEST(x,y) (((x) > (y)) ? (x) : (y))
 #endif
 
 #ifndef CLAMP
-#  define CLAMP(val,min,max) (MAX(MIN(val,max),min))
+#  define CLAMP(val,min,max) (HEIGHEST(LOWEST(val,max),min))
 #endif
 
 #ifndef ABS
@@ -1167,11 +1170,11 @@ static bool rx_load_png(std::string filepath,
 
   friend float length(const Vec2<T>& o) { return sqrtf(o.x * o.x + o.y * o.y); } 
   friend float dot(const Vec2<T> &a, const Vec2<T> &b) { return a.x * b.x + a.y * b.y; }
-  friend float max(const Vec2<T> &v) { return fmaxf(v.x, v.y); }
-  friend float min(const Vec2<T> &v) { return fminf(v.x, v.y); }
+  friend float heighest(const Vec2<T> &v) { return fmaxf(v.x, v.y); }
+  friend float lowest(const Vec2<T> &v) { return fminf(v.x, v.y); }
 
-  friend Vec2<T> max(const Vec2<T> &a, const Vec2<T> &b) { return Vec2<T>(fmaxf(a.x, b.x), fmaxf(a.y, b.y)); }
-  friend Vec2<T> min(const Vec2<T> &a, const Vec2<T> &b) { return Vec2<T>(fminf(a.x, b.x), fminf(a.y, b.y)); }
+  friend Vec2<T> lowest(const Vec2<T> &a, const Vec2<T> &b) { return Vec2<T>(fmaxf(a.x, b.x), fmaxf(a.y, b.y)); }
+  friend Vec2<T> heighest(const Vec2<T> &a, const Vec2<T> &b) { return Vec2<T>(fminf(a.x, b.x), fminf(a.y, b.y)); }
   friend Vec2<T> floor(const Vec2<T> &v) { return Vec2<T>(floorf(v.x), floorf(v.y)); }
   friend Vec2<T> ceil(const Vec2<T> &v) { return Vec2<T>(ceilf(v.x), ceilf(v.y)); }
   friend Vec2<T> abs(const Vec2<T> &v) { return Vec2<T>(fabsf(v.x), fabsf(v.y)); }
@@ -1231,10 +1234,10 @@ static bool rx_load_png(std::string filepath,
 
    friend float length(const Vec3<T>& o) { return sqrtf(o.x * o.x + o.y * o.y + o.z * o.z); } 
    friend float dot(const Vec3<T> &a, const Vec3<T> &b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
-   friend float max(const Vec3<T> &v) { return fmaxf(fmaxf(v.x, v.y), v.z); }
-   friend float min(const Vec3<T> &v) { return fminf(fminf(v.x, v.y), v.z); }
-   friend Vec3<T> max(const Vec3<T> &a, const Vec3<T> &b) { return Vec3<T>(fmaxf(a.x, b.x), fmaxf(a.y, b.y), fmaxf(a.z, b.z)); }
-   friend Vec3<T> min(const Vec3<T> &a, const Vec3<T> &b) { return Vec3<T>(fminf(a.x, b.x), fminf(a.y, b.y), fminf(a.z, b.z)); }
+   friend float heighest(const Vec3<T> &v) { return fmaxf(fmaxf(v.x, v.y), v.z); }
+   friend float lowest(const Vec3<T> &v) { return fminf(fminf(v.x, v.y), v.z); }
+   friend Vec3<T> heighest(const Vec3<T> &a, const Vec3<T> &b) { return Vec3<T>(fmaxf(a.x, b.x), fmaxf(a.y, b.y), fmaxf(a.z, b.z)); }
+   friend Vec3<T> lowest(const Vec3<T> &a, const Vec3<T> &b) { return Vec3<T>(fminf(a.x, b.x), fminf(a.y, b.y), fminf(a.z, b.z)); }
    friend Vec3<T> floor(const Vec3<T> &v) { return Vec3<T>(floorf(v.x), floorf(v.y), floorf(v.z)); }
    friend Vec3<T> ceil(const Vec3<T> &v) { return Vec3<T>(ceilf(v.x), ceilf(v.y), ceilf(v.z)); }
    friend Vec3<T> abs(const Vec3<T> &v) { return Vec3<T>(fabsf(v.x), fabsf(v.y), fabsf(v.z)); }
@@ -1313,10 +1316,10 @@ inline bool intersect(const Vec3<T>& p0, const Vec3<T>& p1, const Vec3<T>& p2, c
 
    friend float length(const Vec4<T>& o) { return sqrtf(o.x * o.x + o.y * o.y + o.z * o.z + o.w * o.w); } 
    friend float dot(const Vec4<T> &a, const Vec4<T> &b) { return a.x * b.x + a.y * b.y + a.z * b.z + a.w * a.w; }
-   friend float max(const Vec4<T> &v) { return fmaxf(fmaxf(v.x, v.y), fmaxf(v.z, v.w)); }
-   friend float min(const Vec4<T> &v) { return fminf(fminf(v.x, v.y), fminf(v.z, v.w)); }
-   friend Vec4<T> max(const Vec4<T> &a, const Vec4<T> &b) { return Vec4<T>(fmaxf(a.x, b.x), fmaxf(a.y, b.y), fmaxf(a.z, b.z), fmaxf(a.w, b.w)); }
-   friend Vec4<T> min(const Vec4<T> &a, const Vec4<T> &b) { return Vec4<T>(fminf(a.x, b.x), fminf(a.y, b.y), fminf(a.z, b.z), fminf(a.w, b.w)); }
+   friend float heighest(const Vec4<T> &v) { return fmaxf(fmaxf(v.x, v.y), fmaxf(v.z, v.w)); }
+   friend float lowest(const Vec4<T> &v) { return fminf(fminf(v.x, v.y), fminf(v.z, v.w)); }
+   friend Vec4<T> heighest(const Vec4<T> &a, const Vec4<T> &b) { return Vec4<T>(fmaxf(a.x, b.x), fmaxf(a.y, b.y), fmaxf(a.z, b.z), fmaxf(a.w, b.w)); }
+   friend Vec4<T> lowest(const Vec4<T> &a, const Vec4<T> &b) { return Vec4<T>(fminf(a.x, b.x), fminf(a.y, b.y), fminf(a.z, b.z), fminf(a.w, b.w)); }
    friend Vec4<T> floor(const Vec4<T> &v) { return Vec4<T>(floorf(v.x), floorf(v.y), floorf(v.z), floorf(v.w)); }
    friend Vec4<T> ceil(const Vec4<T> &v) { return Vec4<T>(ceilf(v.x), ceilf(v.y), ceilf(v.z), ceilf(v.w)); }
    friend Vec4<T> abs(const Vec4<T> &v) { return Vec4<T>(fabsf(v.x), fabsf(v.y), fabsf(v.z), fabsf(v.w)); }
@@ -1650,7 +1653,7 @@ static void rx_rgb_to_hsv(float r, float g, float b, float& h, float& s, float& 
       K = -2.f / 6.f - K;
   }
 
-  float chroma = r - std::min(g, b);
+  float chroma = r - std::min<float>(g, b);
   h = fabs(K + (g - b) / (6.f * chroma + 1e-20f));
   s = chroma / (r + 1e-20f);
   v = r;
