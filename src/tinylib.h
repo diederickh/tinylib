@@ -18,6 +18,11 @@
   Tiny library with a couple of handy functions for opengl based applications.
   Sent changes to: https://github.com/roxlu/tinylib
 
+  TODO:
+  -----
+  I quickly ported this file to windows, but it needs some more work and testing:
+  - we're using GLXW to include GL headers now, because default windows headers are GL 1
+
   Usage:
   ------
   #define ROXLU_USE_ALL              - to include all code
@@ -149,6 +154,13 @@
 #include <vector>
 
 #if defined(_WIN32)
+#  define NOMINMAX
+#  include <direct.h>
+#  include <Shlwapi.h>
+#  include <stdint.h>
+#  if defined(ROXLU_USE_OPENGL)
+#    include <GLXW/glxw.h>
+#  endif
 #elif defined(__APPLE__)
 #  if defined(ROXLU_USE_OPENGL)
 #    include <OpenGL/gl3.h>
@@ -306,6 +318,7 @@ static std::string rx_get_exe_path() {
 }
 #endif // rx_get_exe_path()
 
+#if !defined(WIN32)
 static bool rx_is_dir(std::string filepath) {
   struct stat st;
   int result = stat(filepath.c_str(), &st);
@@ -347,6 +360,7 @@ static bool rx_is_dir(std::string filepath) {
 #endif  
 
 }
+#endif
 
 static std::string rx_to_data_path(const std::string filename) {
   std::string exepath = rx_get_exe_path();
@@ -406,11 +420,13 @@ static uint64_t rx_hrtime() {
   if(clock_gettime(clock_id, &t)) {
     return 0; 
   }
+
+  printf("need to test rx_hrtime() for linux.\n");
   return t.tv_sec * (uint64_t)1e9 +t.tv_nsec;
-  
-#  error "Need to implement rx_hrtime() for linux"
+
 #elif defined(_WIN32)
-#  error "Need to implement rx_hrtime() for win"
+  printf("need to implement rx_hrtime() for linux\n");
+  return 0;
 #endif
 };
 
@@ -1094,6 +1110,7 @@ static bool rx_load_png(std::string filepath,
   friend float dot(const Vec2<T> &a, const Vec2<T> &b) { return a.x * b.x + a.y * b.y; }
   friend float max(const Vec2<T> &v) { return fmaxf(v.x, v.y); }
   friend float min(const Vec2<T> &v) { return fminf(v.x, v.y); }
+
   friend Vec2<T> max(const Vec2<T> &a, const Vec2<T> &b) { return Vec2<T>(fmaxf(a.x, b.x), fmaxf(a.y, b.y)); }
   friend Vec2<T> min(const Vec2<T> &a, const Vec2<T> &b) { return Vec2<T>(fminf(a.x, b.x), fminf(a.y, b.y)); }
   friend Vec2<T> floor(const Vec2<T> &v) { return Vec2<T>(floorf(v.x), floorf(v.y)); }
@@ -1105,7 +1122,8 @@ static bool rx_load_png(std::string filepath,
   void print() { printf("x: %f, y: %f\n", x, y); } 
 
  public:
-  T x, y;
+  T x;
+  T y;
  };
 
 
