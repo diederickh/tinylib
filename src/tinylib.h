@@ -23,7 +23,6 @@
   I quickly ported this file to windows, but it needs some more work and testing:
   - we're using GLXW to include GL headers now, because default windows headers are GL 1
   - describe perlin
-  - describe spline
 
   Usage:
   ------
@@ -146,11 +145,35 @@
       void  mat4.print()
       float* mat4.ptr()                                    - get a pointer to the data
     
-      <examples>
-      // create an ortho matrix with 0,0 at the top left
-      mat4 m;
-      m.ortho(0.0f, w, h, 0, 0.0f, 100.0f);
-      </examples>
+      <example>
+           // create an ortho matrix with 0,0 at the top left
+           mat4 m;
+           m.ortho(0.0f, w, h, 0, 0.0f, 100.0f);
+      </example>
+
+
+      Spline<T>  - catmull rom interpolation (MAKE SURE TO USE AT LEAST 4 POINTS!)
+      ------------------------------------------------------------------------------
+
+      Spline<T>.size()             - returns the number of elements added
+      Spline<T>.clear()            - removes all added elements
+      Spline<T>.push_back(T)       - add an element
+      Spline<T>.assign(begin, end) - assign multiple values
+      Spline<T>.at(float t)        - get the interpolated value at this point
+
+      <example>
+           Spline<float> spline;
+           spline.push_back(1.0);
+           spline.push_back(3.0);
+           spline.push_back(6.0);
+           spline.push_back(5.0);
+           
+           int num = 10;
+           for(int i = 0; i <= num; ++i) {
+             float p = float(i)/num;
+             printf("%d: %f (perc: %f)\n",i, spline.at(p), p);
+           }
+      </example>
 
 */
 
@@ -1699,6 +1722,7 @@ static void rx_hsv_to_rgb(float* hsv, float* rgb) {
 
  // SPLINE
  // ----------------------------------------------------------------------------
+
 /**
  * Catmull Rom interpolation. 
  * --------------------------
@@ -1707,187 +1731,50 @@ static void rx_hsv_to_rgb(float* hsv, float* rgb) {
  * points A and D are used as "direction" (kind of). Therefore, for the first
  * and last point we have to choose the indices correctly. (see the index
  * checking for a,b,c,d below.). Basically for the first point, we use 0,0
- * for points A and Bs.
+ * for points A and Bs. Make sure to add at least 4 points before interpolating. 
+ * 
+ * This can be used almost the same as std::vector.
  *
  * Everything is normalized between [0,1]
  */
 
 // T: vector type
-template<class T, size_t D>
+template<class T>
   struct Spline {
-
-    typedef T point_type;
     
-    Spline();
-    ~Spline();
-
-    size_t size();                         /* the number of points */
-    void clear();                          /* remove all points */
-    float length();                        /* get the length of the polyline */
-    T at(float t);                         /* interpolate using catmull rom */
-    T get(float t);                        /* get a point which is exactly on the line, at this time step, t is between 0 and 1 */
-    void add(const T point);
-    void add(int num, const T* points);    /* add several values */
-
-    float length(T v);                     /* returns the length for the given vector */
-    T normalize(T v);                      /* normalizes the given point/vector */
+    size_t size();                                 /* the number of points */
+    void clear();                                  /* remove all points */
+    T at(float t);                                 /* interpolate using catmull rom */
+    void push_back(const T point);                 /* add a point to the class */
+    template<class I> void assign(I begin, I end) {  points.assign(begin, end); } /* assign multiple values; just like std::vector<T>::assign() */
 
     T& operator[](const unsigned int);
-    
     std::vector<T> points;
-  };
+};
 
-template<class T, size_t D>
-  inline Spline<T, D>::Spline() {
-}
 
-template<class T, size_t D>
-  inline Spline<T, D>::~Spline() {
-}
-
-template<class T, size_t D>
-  T& Spline<T, D>::operator[](const unsigned int dx) {
+template<class T>
+  T& Spline<T>::operator[](const unsigned int dx) {
   return points[dx];
 }
 
-template<class T, size_t D>
-  inline size_t Spline<T, D>::size() {
+template<class T>
+  inline size_t Spline<T>::size() {
   return points.size();
 }
 
-template<class T, size_t D>
-  inline void Spline<T, D>::clear() {
+template<class T>
+  inline void Spline<T>::clear() {
   return points.clear();
 }
 
-template<class T, size_t D>
-  inline void Spline<T, D>::add(const T p) {
+template<class T>
+  inline void Spline<T>::push_back(const T p) {
   points.push_back(p);
 }
 
-template<class T, size_t D>
-  inline void Spline<T, D>::add(int num, const T* points) {
-  for(int i = 0; i < num; ++i) {
-    add(points[i]);
-  }
-}
-  
-template<class T, size_t D>
-  inline float Spline<T, D>::length() {
-  float l = 0.0f;
-  for(size_t i = 0; i < points.size() - 1; ++i) {
-    T a = points[i];
-    T b = points[i + 1];
-    l += length(b - a);
-  }
-  return l;
-}
-
-// get the length of the given vector.
-template<class T, size_t D>
-  inline float Spline<T, D>::length(T v) {
-
-  float sq = 0.0f;
-  for(size_t i = 0; i < D; ++i) {
-    sq += v[i] * v[i];
-  }
-   
-  if(sq == sq && sq > 0.0f) {
-    return sqrt(sq);
-  }
-  else {
-    return 0.0f;
-  }
-}
-
-// normalize a `point` (e.g. vec2 or vec3)
-template<class T, size_t D>
-  inline T Spline<T, D>::normalize(T v) {
-
-  T result;
-  float len = length(v);
-
-  if(len == 0.0f) {
-    for(size_t i = 0; i < D; ++i) {
-      result[i] = 0.0f;
-    }
-  }
-  else {
-    float inv = 1.0f / len;
-    for(size_t i = 0; i < D; ++i) {
-      result[i] = v[i] * inv;
-    }
-  }
-
-  return result;
-}
-
-// get the position at the line using linear interpolation
-// this will only work for vector classes! If you have a long
-// line and you want to divide it in equal parts you can use this
-// function to get the correct position on the line. 
-//
-// `t = 0` means the start of the line
-// `t = 1` means end of the line
-template<class T, size_t D>
-  inline T Spline<T, D>::get(float t) {
-
-  if(!points.size()) {
-    return T();
-  }
-
-  if(points.size() == 1) {
-    return points[0];
-  }
-
-  if(t > 0.9999f) {
-    t = 1.0f;
-    return points.back();
-  }
-
-  if(t < 0.0f) {
-    t = 0.0f;
-  }
-
-  // -------
-  float line_length = length();
-  float curr_l = 0.0;
-  float sample_at = line_length * t;
-  float curr_dist = 0;
-  float prev_dist = 0;
-  size_t start_dx = 0;
-  size_t end_dx = 0;
-
-  for(size_t i = 0; i < points.size()-1; ++i) {
-    T a = points[i];
-    T b = points[i + 1];
-    curr_l = length(b-a);
-    curr_dist += curr_l;
-    start_dx = i;
-    end_dx = i + 1;
-
-    if(curr_dist >= sample_at) {
-      break;
-    }
-    prev_dist = curr_dist;
-  }
-
-  T segment_start = points[start_dx];
-  T segment_end = points[end_dx];
-  float segment_length = sample_at - prev_dist;
-
-  if(segment_length <= 0.01) {
-    return segment_start;
-  }
-
-  T segment_dir = normalize(segment_end - segment_start);
-  T result = segment_start + segment_dir * segment_length;
-
-  return result;
-}
-
-template<class T, size_t D>
-  inline T Spline<T, D>::at(float t) {
+template<class T>
+  inline T Spline<T>::at(float t) {
   if(points.size() < 4) {
     return T();
   }
@@ -1925,9 +1812,7 @@ template<class T, size_t D>
   float t2 = t*t;
   float t3 = t*t*t;
 
-  for(int i = 0; i < D; ++i) {
-    result[i] = 0.5 * ((2 * p1[i]) + (-p0[i] + p2[i]) * t + (2 * p0[i] - 5 * p1[i] + 4 * p2[i] - p3[i]) * t2 + (-p0[i] + 3 * p1[i] - 3 * p2[i] + p3[i]) * t3);
-  }
+  result = 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
 
   return result;
 }
