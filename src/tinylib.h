@@ -197,7 +197,6 @@
 #include <vector>
 
 #if defined(_WIN32)
-//#  define NOMINMAX
 #  include <direct.h>
 #  include <Shlwapi.h>
 #  include <stdint.h>
@@ -225,6 +224,7 @@
 #  include <unistd.h>                               /* readlink(), getcwd() */
 #  include <sys/time.h>                             /* timeofday() */
 #  include <libgen.h>                               /* dirname() */
+#  include <stdint.h>                               /* uint*_t types */
 #  include <sys/stat.h>
 #  include <stdarg.h>
 #  if defined(ROXLU_USE_OPENGL)
@@ -464,7 +464,7 @@ static uint64_t rx_hrtime() {
   struct timespec t;
   clock_t clock_id;
 
-  if(fast_lock_id == -1) {
+  if(fast_clock_id == -1) {
     if(clock_getres(CLOCK_MONOTONIC_COARSE, &t) == 0 && t.tv_nsec <= 1 * 1000 * 1000LLU) {
       fast_clock_id = CLOCK_MONOTONIC_COARSE;
     }
@@ -478,7 +478,6 @@ static uint64_t rx_hrtime() {
     return 0; 
   }
 
-  printf("need to test rx_hrtime() for linux.\n");
   return t.tv_sec * (uint64_t)1e9 +t.tv_nsec;
 
 #elif defined(_WIN32)
