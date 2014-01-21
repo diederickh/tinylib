@@ -66,6 +66,7 @@
   OBJ.load(filepath)                                                        - load the .obj file, returns boolean
   OBJ.hasNormals()                                                          - returns true if the loaded obj has normals
   OBJ.hasTexCoords()                                                        - returns true if the loaded obj had texcoords
+  OBJ.copy(std::vector<VertexPT>&)                                          - copy the loaded vertices
 
   IMAGES - define `ROXLU_USE_PNG` before including
   ===================================================================================
