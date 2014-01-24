@@ -18,6 +18,7 @@
   Tiny library with a couple of handy functions for opengl based applications.
   Sent changes to: https://github.com/roxlu/tinylib
 
+
   TODO:
   -----
   I quickly ported this file to windows, but it needs some more work and testing:
@@ -26,25 +27,32 @@
 
   Usage:
   ------
+  The tinylib.h file contains the function definitions and declarations. In your
+  header files you only use ROXLU_USE_{ALL, OPENGL, PNG, etc..} but in your main.cpp
+  file you use all the defines that you use in your app (e.g. ROXLU_USE_ALL) +
+  ROXLU_IMPLEMENTATION. When you add ROXLU_IMPLEMENTATION, which is only allowed in a
+  .cpp file, all the source code will be added to so your application can link with it.
+
   #define ROXLU_USE_ALL              - to include all code
   #define ROXLU_USE_OPENGL           - to use the opengl code
   #define ROXLU_USE_PNG              - to use the png loader and saver (needs libpng)
   #define ROXLU_USE_MATH             - to use the vec2, vec3, vec4, mat4 classes
+  #define ROXLU_USE_FONT             - to use BitmapFont
 
 
   OPENGL - define `ROXLU_USE_OPENGL` before including
   ===================================================================================
-  rx_create_shader(GL_VERTEX_SHADER, source_char_p);    - create a shader, pass type
-  rx_create_shader_from_file(GL_VERTEX_SHADER, path);   - create a shader from a file, give a full path, returns -1 on error
-  rx_create_program(vert, frag);                        - create a program - DOES NOT LINK
-  rx_create_program_with_attribs(vert, frag, 2, attr);  - create a program with attribs + LINKS THE PROGRAM
-  rx_print_shader_link_info(prog)                       - print the program link info
-  rx_print_shader_compile_info(vert)                    - print the shader compile info
-  rx_create_texture(filepath)                           - loads a png and creates a texture (only when png is enabled)  
-  rx_get_uniform_location(prog, name)                   - returns the location of the uniform or returns -1 and logs something in debug mode
-  rx_uniform_1i(prog, name, value)                      - set a 1i value
-  rx_uniform_1f(prog, name, value)                      - set a 1f value
-  rx_uniform_mat4fv(prog, name, count, trans, ptr)      - set a mat4fv
+  rx_create_shader(GL_VERTEX_SHADER, source_char_p);                        - create a shader, pass type
+  rx_create_shader_from_file(GL_VERTEX_SHADER, path);                       - create a shader from a file, give a full path, returns -1 on error
+  rx_create_program(vert, frag);                                            - create a program - DOES NOT LINK
+  rx_create_program_with_attribs(vert, frag, 2, attr);                      - create a program with attribs + LINKS THE PROGRAM
+  rx_print_shader_link_info(prog)                                           - print the program link info
+  rx_print_shader_compile_info(vert)                                        - print the shader compile info
+  rx_create_texture(filepath)                                               - loads a png and creates a texture (only when png is enabled)  
+  rx_get_uniform_location(prog, name)                                       - returns the location of the uniform or returns -1 and logs something in debug mode
+  rx_uniform_1i(prog, name, value)                                          - set a 1i value
+  rx_uniform_1f(prog, name, value)                                          - set a 1f value
+  rx_uniform_mat4fv(prog, name, count, trans, ptr)                          - set a mat4fv
 
   Shader                                                                    - represents a GL shader; only works with files! 
   Shader.load(type, filepath)                                               - load the source for the shader from file 
@@ -70,111 +78,197 @@
 
   IMAGES - define `ROXLU_USE_PNG` before including
   ===================================================================================
-  rx_save_png("filename.png", pixels, 640, 480, 3);            - writes a png using lib png
-  rx_load_png("filepath.png", &pix, width, height, nchannels)  - load the pixels, width, height and nchannels for the given filepath. make sure to delete pix (which is unsigned char*)
+  rx_save_png("filename.png", pixels, 640, 480, 3);                         - writes a png using lib png
+  rx_load_png("filepath.png", &pix, width, height, nchannels)               - load the pixels, width, height and nchannels for the given filepath. make sure to delete pix (which is unsigned char*)
 
   UTILS
   ===================================================================================
-  rx_get_exe_path();                  - returns the path to the exe 
-  rx_read_file("filepath.txt");       - returns the contents of the filepath.
-  rx_to_float("0.15");                - convert a string to float 
-  rx_to_int("10");                    - convert a string to integer
-  rx_to_data_path("filename.txt")     - convert the given filename to the data dir
-  rx_is_dir("path")                   - returns true when the path is a dir
-
-  rx_hrtime()                         - high resolution timer (time in nano sec)
-  rx_millis()                         - returns the elapsed millis since the first call as float, 1000 millis returns 1.0
-  rx_strftime("%Y/%m%d/")             - strftime wrapper
-  rx_get_year()                       - get the current year as int, e.g. 2014
-  rx_get_month()                      - get the current month as int [00-11]
-  rx_get_day()                        - get the day of the month [00-31]
-  rx_get_hour()                       - get the hour of day [00-23]
-  rx_get_minute()                     - get the minuts of the hours, [00-59]
-
-  rx_rgb_to_hsv(r,g,b,h,s,v)          - convert rgb in range 0-1 to hsv in the same range. h,s,v are references
-  rx_rgb_to_hsv(rgb, hsv)             - convert given vector, hsv will be set (reference)
-  rx_rgb_to_hsv(rgb, float*)          - "", different typed parameters
-  rx_rgb_to_hsv(float*, float*)       - "", ""
-
-  rx_hsv_to_rgb(h,s,v,r,g,b)          - convert rgb to hsv all in 0-1 range. r,g,b will be set, are references
-  rx_hsv_to_rgb(hsv, rgb)             - convert rgb to hsv all in 0-1 rnage. rgb will be set, is a reference
-  rx_hsv_to_rgb(hsv, float*)          - "", "" 
-  rx_hsv_to_rgb(float,* float*)       - "", ""
+  rx_to_float("0.15");                                                     - convert a string to float 
+  rx_to_int("10");                                                         - convert a string to integer
+                                                                           
+  rx_get_exe_path();                                                       - returns the path to the exe 
+  rx_read_file("filepath.txt");                                            - returns the contents of the filepath.
+  rx_to_data_path("filename.txt")                                          - convert the given filename to the data dir
+  rx_is_dir("path")                                                        - returns true when the path is a dir
+  rx_strip_filename("/path/filename")                                      - removes the filename from the given path
+  rx_strip_dir("/path/filename")                                           - removes the path from the given path leaving only the filename
+  rx_create_dir("/path/to")                                                - creates the given directory
+  rx_create_path("/a/b/c")                                                 - creates the path. all subdirectories too)
+  rx_norm_path("/some/path/")                                              - creates a normalized, cross platform path. always pass in forward slashes; on windows you'll get backslashes
+  rx_get_files("/path/", ".jpg")                                           - returns a std::vector<std::string> with the files found in the given dir which have the given extension.
+  rx_get_file_ext("/file/path.jpg")                                        - returns the extension of a file ("jpg", "gif", etc..)
+                                                                           
+  rx_split("string", '/')                                                  - splits a string on the given character returning std::vector<std::string>
+  rx_string_replace("string", "replace", "with")                           - replaces characters or string from one to another
+                                                                           
+  rx_hrtime()                                                              - high resolution timer (time in nano sec)
+  rx_millis()                                                              - returns the elapsed millis since the first call as float, 1000 millis returns 1.0
+  rx_strftime("%Y/%m%d/")                                                  - strftime wrapper
+  rx_get_year()                                                            - get the current year as int, e.g. 2014
+  rx_get_month()                                                           - get the current month as int [00-11]
+  rx_get_day()                                                             - get the day of the month [00-31]
+  rx_get_hour()                                                            - get the hour of day [00-23]
+  rx_get_minute()                                                          - get the minuts of the hours, [00-59]
+                                                                           
+  rx_rgb_to_hsv(r,g,b,h,s,v)                                               - convert rgb in range 0-1 to hsv in the same range. h,s,v are references
+  rx_rgb_to_hsv(rgb, hsv)                                                  - convert given vector, hsv will be set (reference)
+  rx_rgb_to_hsv(rgb, float*)                                               - "", different typed parameters
+  rx_rgb_to_hsv(float*, float*)                                            - "", ""
+                                                                           
+  rx_hsv_to_rgb(h,s,v,r,g,b)                                               - convert rgb to hsv all in 0-1 range. r,g,b will be set, are references
+  rx_hsv_to_rgb(hsv, rgb)                                                  - convert rgb to hsv all in 0-1 rnage. rgb will be set, is a reference
+  rx_hsv_to_rgb(hsv, float*)                                               - "", "" 
+  rx_hsv_to_rgb(float,* float*)                                            - "", ""
  
 
   MATH - define `ROXLU_USE_MATH` before including. 
   ===================================================================================
 
-      utils
-      ------------------------------------------------------------------------------
-      float rx_random(max)      - generate a random value but limit to max
-      float rx_random(min, max) - generate a random value between min and max
-      
-      vec2, vec3, vec4
-      ------------------------------------------------------------------------------
-      float length(v)         - get the length of the vector
-      float dot(a, b)         - get the dot product aka squared root
-      vec2 max(a)             - get the biggest component value
-      vec2 min(a)             - get the lowest component value
-      vec2 max(a,b)           - get the biggest vector
-      vec2 nmin(a,b)          - get the smallest vector
-      vec2 floor(a)           - floor the components
-      vec2 ceil(a)            - ceil the compoments
-      vec2 fract(a)           - get the decimal part
-      vec2 normalized(v)      - get the normalized vector
-      void print()            - print the x and y 
-      vec3 cross(a,b)         - cross product (vec3)
+  utils
+  ------------------------------------------------------------------------------
+  float rx_random(max)                                                     - generate a random value but limit to max
+  float rx_random(min, max)                                                - generate a random value between min and max
+  
+  vec2, vec3, vec4
+  ------------------------------------------------------------------------------
+  float length(v)                                                          - get the length of the vector
+  float dot(a, b)                                                          - get the dot product aka squared root
+  vec2 max(a)                                                              - get the biggest component value
+  vec2 min(a)                                                              - get the lowest component value
+  vec2 max(a,b)                                                            - get the biggest vector
+  vec2 nmin(a,b)                                                           - get the smallest vector
+  vec2 floor(a)                                                            - floor the components
+  vec2 ceil(a)                                                             - ceil the compoments
+  vec2 fract(a)                                                            - get the decimal part
+  vec2 normalized(v)                                                       - get the normalized vector
+  void print()                                                             - print the x and y 
+  vec3 cross(a,b)                                                          - cross product (vec3)
 
-      vec3
-      -----------------------------------------------------------------------------
-      vec3 perpendicular(a)              - get a perpendicular vector from the given vec, this vector doesn't have to be normalized!, based on http://lolengine.net/blog/2013/09/21/picking-orthogonal-vector-combing-coconuts 
-      bool intersect(a,b,c,d, &result)   - checks if two lines intersect line (b-a) and (d-c). resturns true when they intersect and it will set result to the intersection point
-    
-      mat4
-      ------------------------------------------------------------------------------
-      mat4& mat4.rotateX(rad)
-      mat4& mat4.rotateY(rad)
-      mat4& mat4.rotateZ(rad)
-      mat4& mat4.rotate(rad, x, y, z)
-      mat4& mat4.scale(x, y, z)
-      mat4& mat4.scale(s)
-      mat4& mat4.translate(x, y, z)
-      mat4& mat4.translate(vec3 v)
-      mat4& mat4.ortho(l, r, b, t, n , f)
-      mat4& mat4.frustum(l, r, b, t, n, f)
-      mat4& mat4.perspective(fov, aspect, near, far)
-      void  mat4.print()
-      float* mat4.ptr()                                    - get a pointer to the data
-    
-      <example>
-           // create an ortho matrix with 0,0 at the top left
-           mat4 m;
-           m.ortho(0.0f, w, h, 0, 0.0f, 100.0f);
-      </example>
+  vec3
+  -----------------------------------------------------------------------------
+  vec3 perpendicular(a)                                                    - get a perpendicular vector from the given vec, this vector doesn't have to be normalized!, based on http://lolengine.net/blog/2013/09/21/picking-orthogonal-vector-combing-coconuts 
+  bool intersect(a,b,c,d, &result)                                         - checks if two lines intersect line (b-a) and (d-c). resturns true when they intersect and it will set result to the intersection point
+  
+  mat4
+  ------------------------------------------------------------------------------
+  mat4& mat4.rotateX(rad)
+  mat4& mat4.rotateY(rad)
+  mat4& mat4.rotateZ(rad)
+  mat4& mat4.rotate(rad, x, y, z)
+  mat4& mat4.scale(x, y, z)
+  mat4& mat4.scale(s)
+  mat4& mat4.translate(x, y, z)
+  mat4& mat4.translate(vec3 v)
+  mat4& mat4.ortho(l, r, b, t, n , f)
+  mat4& mat4.frustum(l, r, b, t, n, f)
+  mat4& mat4.perspective(fov, aspect, near, far)
+  void  mat4.print()
+ float* mat4.ptr()                                                        - get a pointer to the data
+  
+  <example>
+       // create an ortho matrix with 0,0 at the top left
+       mat4 m;
+       m.ortho(0.0f, w, h, 0, 0.0f, 100.0f);
+  </example>
 
 
-      Spline<T>  - catmull rom interpolation (MAKE SURE TO USE AT LEAST 4 POINTS!)
-      ------------------------------------------------------------------------------
+  Spline<T>  - catmull rom interpolation (MAKE SURE TO USE AT LEAST 4 POINTS!)
+  ------------------------------------------------------------------------------
 
-      Spline<T>.size()             - returns the number of elements added
-      Spline<T>.clear()            - removes all added elements
-      Spline<T>.push_back(T)       - add an element
-      Spline<T>.assign(begin, end) - assign multiple values
-      Spline<T>.at(float t)        - get the interpolated value at this point
+  Spline<T>.size()                                                       - returns the number of elements added
+  Spline<T>.clear()                                                      - removes all added elements
+  Spline<T>.push_back(T)                                                 - add an element
+  Spline<T>.assign(begin, end)                                           - assign multiple values
+  Spline<T>.at(float t)                                                  - get the interpolated value at this point
 
-      <example>
-           Spline<float> spline;
-           spline.push_back(1.0);
-           spline.push_back(3.0);
-           spline.push_back(6.0);
-           spline.push_back(5.0);
-           
-           int num = 10;
-           for(int i = 0; i <= num; ++i) {
-             float p = float(i)/num;
-             printf("%d: %f (perc: %f)\n",i, spline.at(p), p);
-           }
-      </example>
+  <example>
+       Spline<float> spline;
+       spline.push_back(1.0);
+       spline.push_back(3.0);
+       spline.push_back(6.0);
+       spline.push_back(5.0);
+       
+       int num = 10;
+       for(int i = 0; i <= num; ++i) {
+         float p = float(i)/num;
+         printf("%d: %f (perc: %f)\n",i, spline.at(p), p);
+       }
+  </example>
+
+  BITMAPFONT - define `ROXLU_USE_FONT` before including.
+  ===================================================================================
+  
+  BitmapFont.setup(filepath, winW, winH)                             - setup the BitmapFont, filepath is the .fnt file. 
+  BitmapFont.reset()                                                 - remove all vertex data; use this if you have changing text all the time
+  BitmapFont.write(x, y, "My Text")                                  - create vertices that you later draw() at x,y
+  BitmapFont.setColor(r,g,b,a)                                       - set the font color
+  BitmapFont.resize(winW, winH)                                      - when your window size changes, call this
+  BitmapFont.print()                                                 - print some debug info.
+
+  This class loads fonts that are generated by the BMFont application. The 
+  API for this class is optimized for performance. We follow the "page" 
+  metaphore, you write on a page and then you present. That means that you 
+  first need to call write once (somewhere in your setup function) and then 
+  call draw(). We use this approach because we don't want to regenerate all
+  the vertices everytime you render something.
+
+  Usage
+  -----
+
+  - First you call `setup()` and pass the path to the .fnt file you got from 
+    BMFont and the width and height of your window. We need the size of the 
+    window so we can create a correct ortho graphic projection matrix.
+  - The top left of your window is 0,0.
+  - Once loaded, call `write(x,y,"text")` as often as you want. 
+  - Then in your render loop, call `draw()`
+  - When your screen size changes, call `resize(w,h)`
+
+  Creating fonts with BMFont
+  --------------------------
+  
+  We use [BMFont](http://www.angelcode.com/products/bmfont/) and you must
+  follow these settings. We use fixed heights because this eases use with 
+  the calculations for the vertices and may help if you want to create solid
+  backgrounds for the characters. 
+
+     Options > Font Settings:    
+
+        - Size: e.g. 13px         
+        - Height %: 100
+        - Turn off all other checkboxes!
+
+
+     Options > Export Options                                  
+     
+        - Padding: all zero
+        - Spacing: 1, 1
+        - [x] Equalize the cell heights
+        - Texture: Use a power of 2 sized texture 
+        - File Format: XML
+        - Textures: PNG
+        - Turn off all other checkboxes!
+ 
+     When you've set all the settings, you can create the bitmap font by 
+     doing `Options > Save bitmap font as...`. Copy the .fnt and [name]_0.png 
+     files to the same directory.
+
+
+   <example>
+      BitmapFont font;
+      if(!font.setup("arial.fnt", 1024, 768)) {
+         ::exit(EXIT_FAILUR);
+      }
+
+      font.setColor(1.0, 0.0, 0.0);
+      font.write(10, 10, "Hello Galaxy!");
+
+      font.setColor(1.0, 1.0, 0.0);
+      font.write(10, 100, "Hello World!");
+
+      while(render) {
+         font.draw();
+      }
+   </example>
 
 */
 
@@ -185,6 +279,7 @@
 #  define ROXLU_USE_OPENGL
 #  define ROXLU_USE_PNG
 #  define ROXLU_USE_MATH
+#  define ROXLU_USE_FONT
 #endif
 
 #include <assert.h>
@@ -196,6 +291,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <map> 
 
 #if defined(_WIN32)
 #  include <direct.h>
@@ -218,6 +314,7 @@
 #  include <sys/sysctl.h>
 #  include <sys/stat.h>                             /* stat() */
 #  include <unistd.h>                               /* sysconf */
+#  include <dirent.h>                               /* DIR */
 #elif defined(__linux)
 #  include <string.h>                               /* strlen() */
 #  include <dirent.h>                               /* stat() */
@@ -234,7 +331,9 @@
 #  define MAX_PATH 4096
 #endif
 
-#include <math.h>
+#if defined(ROXLU_USE_FONT)
+#  include <rapidxml.hpp>
+#endif
 
 #if defined(ROXLU_USE_PNG)
 #  include <png.h>
@@ -290,18 +389,501 @@
 
 #if defined(ROXLU_USE_PNG) 
 static bool rx_load_png(std::string filepath, unsigned char** pixels, int& w, int& h, int& nchannels);
+static bool rx_save_png(std::string filepath, unsigned char* pixels, int w, int h, int channels);
+#endif
 
-#  if defined(ROXLU_USE_OPENGL)
-   static GLuint rx_create_texture(std::string filepath, int internalFormat = -1, int format = -1, int type = -1);
-#  endif
+static std::string rx_get_exe_path();
+static bool rx_is_dir(std::string filepath);
+static std::string rx_to_data_path(const std::string filename);
+static std::string rx_string_replace(std::string, char from, char to);
+static std::string rx_string_replace(std::string, std::string from, std::string to);
+static std::string rx_strip_filename(std::string path);
+static std::string rx_strip_dir(std::string path);
+static bool rx_create_dir(std::string path);
+static bool rx_create_path(std::string path);
+static std::string rx_get_file_ext(std::string filename);
+static std::vector<std::string> rx_get_files(std::string path, std::string ext = "");
+static std::string rx_norm_path(std::string path);
+static int rx_to_int(const std::string& v);
+static float rx_to_float(const std::string& v);
+static std::vector<std::string> rx_split(std::string str, char delim);
+static uint64_t rx_hrtime();
+static float rx_millis();
+static std::string rx_strftime(const std::string fmt);
+static std::string rx_read_file(std::string filepath);
+static int rx_get_year();
+static int rx_get_month();
+static int rx_get_hour();
+static int rx_get_minute();
 
+#if defined(ROXLU_USE_MATH)
+ template<class T>
+   class Vec2 {
+
+ public:
+   Vec2();
+   Vec2(T x, T y);
+   Vec2(const Vec2<T>& o);
+   Vec2(T f);
+
+   void set(T vx, T vy);
+   T* ptr();
+   T& operator [](const unsigned int dx);
+  
+   Vec2<T> operator + () const;
+   Vec2<T> operator - () const;
+   Vec2<T> operator + (const Vec2<T>& o) const;
+   Vec2<T> operator - (const Vec2<T>& o) const;
+   Vec2<T> operator * (const Vec2<T>& o) const;
+   Vec2<T> operator / (const Vec2<T>& o) const;
+   Vec2<T> operator + (float s) const;
+   Vec2<T> operator - (float s) const;
+   Vec2<T> operator * (float s) const;
+   Vec2<T> operator / (float s) const;
+
+   friend Vec2<T> operator + (float s, const Vec2<T>& o);
+   friend Vec2<T> operator - (float s, const Vec2<T>& o);
+   friend Vec2<T> operator * (float s, const Vec2<T>& o);
+   friend Vec2<T> operator / (float s, const Vec2<T>& o);
+
+   Vec2<T>& operator += (const Vec2<T>& o);
+   Vec2<T>& operator -= (const Vec2<T>& o);
+   Vec2<T>& operator *= (const Vec2<T>& o);
+   Vec2<T>& operator /= (const Vec2<T>& o);
+   Vec2<T>& operator += (float s);
+   Vec2<T>& operator -= (float s);
+   Vec2<T>& operator *= (float s);
+   Vec2<T>& operator /= (float s);
+
+   bool operator == (const Vec2<T>& o) const;
+   bool operator != (const Vec2<T>& o) const;
+
+   friend float length(const Vec2<T>& o);
+   friend float dot(const Vec2<T> &a, const Vec2<T> &b);
+   friend float heighest(const Vec2<T> &v);
+   friend float lowest(const Vec2<T> &v);
+
+   friend Vec2<T> lowest(const Vec2<T> &a, const Vec2<T> &b);
+   friend Vec2<T> heighest(const Vec2<T> &a, const Vec2<T> &b);
+   friend Vec2<T> floor(const Vec2<T> &v);
+   friend Vec2<T> ceil(const Vec2<T> &v);
+   friend Vec2<T> abs(const Vec2<T> &v);
+   friend Vec2<T> fract(const Vec2<T> &v);
+   friend Vec2<T> normalized(const Vec2<T> &v);
+   void print();
+
+ public:
+  T x;
+  T y;
+ }; // Vec2<T>
+
+ template<class T>
+   class Vec3 {
+
+ public:
+   Vec3();;
+   Vec3(T x, T y, T z);
+   Vec3(const Vec3<T>& o);
+   Vec3(T f);
+
+   void set(const float xv, const float yv, const float zv);
+   T* ptr();
+   T& operator [](const unsigned int dx);
+  
+   Vec3<T> operator + () const;
+   Vec3<T> operator - () const;
+   Vec3<T> operator + (const Vec3<T>& o) const;
+   Vec3<T> operator - (const Vec3<T>& o) const;
+   Vec3<T> operator * (const Vec3<T>& o) const;
+   Vec3<T> operator / (const Vec3<T>& o) const;
+   Vec3<T> operator + (float s) const;
+   Vec3<T> operator - (float s) const;
+   Vec3<T> operator * (float s) const;
+   Vec3<T> operator / (float s) const;
+
+   friend Vec3<T> operator + (float s, const Vec3<T>& o);
+   friend Vec3<T> operator - (float s, const Vec3<T>& o);
+   friend Vec3<T> operator * (float s, const Vec3<T>& o);
+   friend Vec3<T> operator / (float s, const Vec3<T>& o);
+
+   Vec3<T>& operator += (const Vec3<T>& o);
+   Vec3<T>& operator -= (const Vec3<T>& o);
+   Vec3<T>& operator *= (const Vec3<T>& o);
+   Vec3<T>& operator /= (const Vec3<T>& o);
+   Vec3<T>& operator += (float s);
+   Vec3<T>& operator -= (float s);
+   Vec3<T>& operator *= (float s);
+   Vec3<T>& operator /= (float s);
+
+   bool operator == (const Vec3<T>& o) const;
+   bool operator != (const Vec3<T>& o) const;
+
+   friend float length(const Vec3<T>& o);
+   friend float dot(const Vec3<T> &a, const Vec3<T> &b);
+   friend float heighest(const Vec3<T> &v);
+   friend float lowest(const Vec3<T> &v);
+   friend Vec3<T> heighest(const Vec3<T> &a, const Vec3<T> &b);
+   friend Vec3<T> lowest(const Vec3<T> &a, const Vec3<T> &b);
+   friend Vec3<T> floor(const Vec3<T> &v);
+   friend Vec3<T> ceil(const Vec3<T> &v);
+   friend Vec3<T> abs(const Vec3<T> &v);
+   friend Vec3<T> fract(const Vec3<T> &v);
+   friend Vec3<T> normalized(const Vec3<T> &v);
+   friend Vec3<T> cross(const Vec3<T> &a, const Vec3<T> &b);
+   friend Vec3<T> perpendicular(const Vec3<T>& v);
+   void print();
+
+ public:
+   T x, y, z;
+ }; // Vec3<T>
+
+ template<class T>
+   class Vec4 {
+
+ public:
+   Vec4();
+   Vec4(T x, T y, T z, T w);
+   Vec4(const Vec4<T>& o);
+   Vec4(T f);
+
+   T* ptr();
+   T& operator [](const unsigned int dx);
+  
+   Vec4<T> operator + () const;
+   Vec4<T> operator - () const;
+   Vec4<T> operator + (const Vec4<T>& o) const;
+   Vec4<T> operator - (const Vec4<T>& o) const;
+   Vec4<T> operator * (const Vec4<T>& o) const;
+   Vec4<T> operator / (const Vec4<T>& o) const;
+   Vec4<T> operator + (float s) const;
+   Vec4<T> operator - (float s) const;
+   Vec4<T> operator * (float s) const;
+   Vec4<T> operator / (float s) const;
+
+   friend Vec4<T> operator + (float s, const Vec4<T>& o);
+   friend Vec4<T> operator - (float s, const Vec4<T>& o);
+   friend Vec4<T> operator * (float s, const Vec4<T>& o);
+   friend Vec4<T> operator / (float s, const Vec4<T>& o);
+
+   Vec4<T>& operator += (const Vec4<T>& o); 
+   Vec4<T>& operator -= (const Vec4<T>& o); 
+   Vec4<T>& operator *= (const Vec4<T>& o); 
+   Vec4<T>& operator /= (const Vec4<T>& o); 
+   Vec4<T>& operator += (float s);
+   Vec4<T>& operator -= (float s);
+   Vec4<T>& operator *= (float s);
+   Vec4<T>& operator /= (float s);
+
+   bool operator == (const Vec4<T>& o) const;
+   bool operator != (const Vec4<T>& o) const;
+
+   friend float length(const Vec4<T>& o);
+   friend float dot(const Vec4<T> &a, const Vec4<T> &b);
+   friend float heighest(const Vec4<T> &v);
+   friend float lowest(const Vec4<T> &v);
+   friend Vec4<T> heighest(const Vec4<T> &a, const Vec4<T> &b);
+   friend Vec4<T> lowest(const Vec4<T> &a, const Vec4<T> &b);
+   friend Vec4<T> floor(const Vec4<T> &v);
+   friend Vec4<T> ceil(const Vec4<T> &v);
+   friend Vec4<T> abs(const Vec4<T> &v);
+   friend Vec4<T> fract(const Vec4<T> &v);
+   friend Vec4<T> normalized(const Vec4<T> &v);
+
+   void print();
+
+ public:
+   T x, y, z, w;
+ }; // Vec4<T>
+
+ template<class T>
+   class Matrix4 {
+ public:
+   Matrix4();
+
+   Matrix4<T>& rotateX(T rad);
+   Matrix4<T>& rotateY(T rad);
+   Matrix4<T>& rotateZ(T rad);
+   Matrix4<T>& rotate(T rad, T x, T y, T z);
+   Matrix4<T>& rotate(T rad, const Vec3<T>& v);
+   Matrix4<T>& translate(T x, T y, T z);
+   Matrix4<T>& translate(const Vec3<T>& v);
+   Matrix4<T>& scale(T x, T y, T z);
+   Matrix4<T>& scale(T s);
+   Matrix4<T>& perspective(T fovDegrees, T aspect, T n, T f);
+   Matrix4<T>& ortho(T l, T r, T b, T t, T n, T f);
+   Matrix4<T>& frustum(T l, T r, T b, T t, T n, T f);
+   Matrix4<T>& identity();
+   Matrix4<T>& lookAt(Vec3<T> pos, Vec3<T> target, Vec3<T> up);
+
+   T* ptr() { return &m[0]; } 
+
+   static Matrix4<T> rotation(T rad, T x, T y, T z);
+
+   Matrix4<T>& operator *=(const Matrix4<T>& o);
+   Matrix4<T> operator * (const Matrix4<T>& o) const;
+   T& operator [] (const unsigned int dx);
+
+   void print();
+
+ public:
+   T m[16];
+ }; // Matrix4<T>
+
+template<class T>
+struct Spline {
+  size_t size();                                 /* the number of points */
+  void clear();                                  /* remove all points */
+  T at(float t);                                 /* interpolate using catmull rom */
+  void push_back(const T point);                 /* add a point to the class */
+  template<class I> void assign(I begin, I end); /* assign multiple values; just like std::vector<T>::assign() */
+  T& operator[](const unsigned int);
+  std::vector<T> points;
+}; // Spline<T>
+
+
+typedef Matrix4<float> mat4;
+typedef Vec4<float> vec4;
+typedef Vec3<float> vec3;
+typedef Vec2<float> vec2;
+
+static float rx_random(float max);
+static float rx_random(float x, float y);
+static void rx_rgb_to_hsv(float r, float g, float b, float& h, float& s, float& v);
+static void rx_rgb_to_hsv(vec3 rgb, vec3& hsv);
+static void rx_rgb_to_hsv(float* rgb, float* hsv);
+static void rx_hsv_to_rgb(float h, float s, float v, float& r, float& g, float& b);
+static void rx_hsv_to_rgb(vec3 hsv, float* rgb);
+static void rx_hsv_to_rgb(vec3 hsv, float* rgb);
+static void rx_hsv_to_rgb(float* hsv, float* rgb);
+
+ /*
+
+  # Perlin
+
+  Perlin noise, thanks to Ken P. 
+  This class is based on: http://www.flipcode.com/archives/Perlin_Noise_Class.shtml 
+  with some super tiny changes. Thanks guys!
+
+  octaves: use a value between 1 - 16, 1 = smooth, 16 = noisy, values between 4 - 8 give conventional noise results
+  freq:    use a value between 1 - 8, which will give reasanoble results (you can use any value you want)
+  ampl:    a value of 1, will result in values between -1 and 1
+  seed:    random seed, eg. 94
+
+ */
+
+#define PERLIN_SIZE 1024
+
+class Perlin {
+
+ public:
+  Perlin(int octaves, float freq, float amp, int seed);
+  float get(float x);
+  float get(float x, float y);
+
+ private:
+  void initPerlin(int n, float p);
+  void init();
+  float noise1(float arg);
+  float noise2(float vec[2]);
+  float noise3(float vec[3]);
+  void normalize2(float v[2]);
+  void normalize3(float v[3]);
+  float noise2D(float vec[2]);
+
+ private:
+  int octaves;
+  float freq;
+  float amp;
+  int seed;
+
+  int p[PERLIN_SIZE + PERLIN_SIZE + 2];
+  float g3[PERLIN_SIZE + PERLIN_SIZE + 2][3];
+  float g2[PERLIN_SIZE + PERLIN_SIZE + 2][2];
+  float g1[PERLIN_SIZE + PERLIN_SIZE + 2];
+  bool start;
+}; // Perlin
+
+#endif // ROXLU_USE_MATH
+
+#if defined(ROXLU_USE_MATH) && defined(ROXLU_USE_OPENGL)
+struct VertexP;
+struct VertexPT;
+struct VertexPT3;
+struct VertexPTN;
+struct VertexPN;
+#endif
+
+#if defined(ROXLU_USE_OPENGL)
+static void rx_print_shader_link_info(GLuint shader);
+static void rx_print_shader_compile_into(GLuint shader);
+static GLuint rx_create_program(GLuint vert, GLuint frag);
+static GLuint rx_create_program_with_attribs(GLuint vert, GLuint frag, int nattribs, const char** attribs);
+static GLuint rx_create_shader(GLenum type, const char* src);
+static GLuint rx_create_shader_from_file(GLenum type, std::string filepath);
+static GLint rx_get_uniform_location(GLuint prog, std::string name);
+static void rx_uniform_1i(GLuint prog, std::string name, GLint v);
+static void rx_uniform_1f(GLuint prog, std::string name, GLfloat v);
+static void rx_uniform_mat4fv(GLuint prog, std::string name, GLsizei count, GLboolean transpose, const GLfloat* value);
+
+class Shader {                                                                                               /* represents a GL shader - works only with shaders loaded from file */
+
+ public:      
+  Shader():type(-1),id(-1){}
+  ~Shader() {}                                                                                               /* @todo - we should clean the resources here */
+  Shader& load(GLenum type, std::string filepath, std::string extra = "");                                   /* load a shader file for the given type, you can pass extra data to the shader which is prepended */
+  Shader& reload();                                                                                          /* reload the previously loaded file */
+  Shader& compile();                                                                                         /* compile the shader */
+
+ public:
+  std::string filepath;                                                                                       /* filepath to the shader */
+  std::string file_source;                                                                                    /* the source we loaded() */
+  std::string extra_source;                                                                                   /* source of the shader that is loaded */
+  int type;                                                                                                   /* the shader type, eg. GL_VERTEX_SHADER */
+  int id;                                                                                                     /* the ID of the shader */
+}; // Shader
+
+class Program {
+
+ public:
+  Program():id(-1){};
+  ~Program();                                                                                                 /* @todo - we should clean the resources here */
+  Program& add(Shader* s);                                                                                    /* add a shader when you want to have ownership; you don't need to compile() it yourself */
+  Program& create(GLenum type, std::string filepath, std::string extra = "");                                 /* create a shader and add it, we take ownership you can pass extra data to the shader, which is prepended */
+  Program& link(int nattribs = 0, const char** attribs = NULL, int nfrags = 0, const char** frags = NULL);    /* compiles + links the shaders, if you want to bind attrib or frag locations pass them */
+  Program& recompile();                                                                                       /* recompiles the shaders  + LINKS it for you! */
+
+ public:
+  std::vector<std::string> attribs;                                                                           /* any attributes added to link() */
+  std::vector<std::string> frags;                                                                             /* output fragment locations */
+  std::vector<Shader*> shaders;                                                                               /* the added shaders */
+  std::vector<Shader*> created_shaders;                                                                       /* allocated shaders; we have ownership, see create() */
+  int id;
+}; // Program
+
+
+class OBJ {
+ public:
+  struct TRI { int v, t, n; };
+  struct FACE { TRI a, b, c; };
+  struct XYZ {  float x, y, z; };
+  struct TEXCOORD { float s, t; };
+
+  bool load(std::string filepath);
+
+  bool hasNormals();
+  bool hasTexCoords();
+
+  template<class T>
+    bool copy(T& result);
+
+  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexP>& verts);
+  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPTN>& verts);
+  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPT>& verts);
+  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPN>& verts);
+
+ public:
+  std::vector<vec3> vertices;
+  std::vector<vec3> normals;
+  std::vector<vec2> tex_coords;
+  std::vector<OBJ::FACE> faces;
+  std::vector<int> indices;
+  bool has_texcoords;
+  bool has_normals;
+}; // OBJ
+
+#endif // ROXLU_USE_OPENGL
+
+#if defined(ROXLU_USE_OPENGL) && defined(ROXLU_USE_PNG)
+static GLuint rx_create_texture(std::string filepath, int internalFormat = -1, int format = -1, int type = -1);
 #endif
 
 
+#if defined(ROXLU_USE_FONT)
+// -----------------------------------------------------------------------------
+#define BMF_XML_CHECK(node) { if(!node) { return false; }  }
+
+using namespace rapidxml;
+
+struct Character {
+  Character();
+
+  int id;
+  int x; 
+  int y;
+  int width;
+  int height;
+  int xoffset;
+  int yoffset;
+  int xadvance;
+};
+
+// ------------------------------------------------------------------------------
+
+struct CharacterVertex {
+  CharacterVertex();
+  CharacterVertex(float x, float y, int s, int t, float* rgba);
+
+  float x;
+  float y;
+  float s;
+  float t;
+  float fg_color[4];
+};
+
+// ------------------------------------------------------------------------------
+
+class BitmapFont {
+
+ public:
+  BitmapFont();
+  bool setup(std::string filepath, int winW, int winH);
+  void reset();
+  void write(float x, float y, std::string str);
+  void draw();
+  void setColor(float r, float g, float b, float a = 1.0);
+  void resize(int winW, int winH);
+  void print(); 
+
+ private:
+  bool loadFile(std::string filepath);
+  bool setupGraphics();
+  void updateVertices();
+  
+ public:
+  /* state */
+  bool needs_update;
+  int win_w;
+  int win_h;
+  float color[4];
+
+  /* common font info */
+  std::string image_path;
+  int line_height;
+  int scale_w;
+  int scale_h;
+  int pages;
+  int base;
+
+  /* characters */
+  std::map<int, Character> chars;
+
+  /* opengl */
+  mat4 pm;  
+  GLuint prog;
+  GLuint vert;
+  GLuint frag;
+  GLuint vbo;
+  GLuint vao;
+  GLuint tex;
+  size_t bytes_allocated;
+  std::vector<CharacterVertex> vertices;
+};
+
+#endif // ROXLU_USE_FONT
 
 // UTILS
 // ---------------------------------------------------------------------------
-#if defined(_WIN32) // rx_get_exe_path()
+#if defined(_WIN32) && defined(ROXLU_IMPLEMENTATION)
 static std::string rx_get_exe_path() {
   char buffer[MAX_PATH];
 
@@ -315,7 +897,7 @@ static std::string rx_get_exe_path() {
 
   return std::string(buffer).substr(0, pos) +"\\";
 }
-#elif defined(__APPLE__) // rx_get_exe_path()
+#elif defined(__APPLE__) && defined(ROXLU_IMPLEMENTATION)
 static std::string rx_get_exe_path() {
   char buffer[1024];
   uint32_t usize = sizeof(buffer);;
@@ -346,7 +928,7 @@ static std::string rx_get_exe_path() {
   free(path);
   return ret;
 }
-#elif defined(__linux) // rx_get_exe_path()
+#elif defined(__linux) && defined(ROXLU_IMPLEMENTATION)
 static std::string rx_get_exe_path() {
   char buffer[MAX_PATH];
   size_t size = MAX_PATH;
@@ -365,7 +947,7 @@ static std::string rx_get_exe_path() {
 }
 #endif // rx_get_exe_path()
 
-#if !defined(WIN32)
+#if !defined(WIN32) && defined(ROXLU_IMPLEMENTATION)
 static bool rx_is_dir(std::string filepath) {
   struct stat st;
   int result = stat(filepath.c_str(), &st);
@@ -409,6 +991,7 @@ static bool rx_is_dir(std::string filepath) {
 }
 #endif
 
+#if defined(ROXLU_IMPLEMENTATION)
 static std::string rx_to_data_path(const std::string filename) {
   std::string exepath = rx_get_exe_path();
 
@@ -425,22 +1008,223 @@ static std::string rx_to_data_path(const std::string filename) {
 
   return exepath;
 }
+#endif
 
+#if defined(ROXLU_IMPLEMENTATION)
+static std::string rx_string_replace(std::string str, std::string from, std::string to) {
+  size_t start_pos = str.find(from);
+  if(start_pos == std::string::npos) {
+    return str;
+  }
+  str.replace(start_pos, from.length(), to);
+  return str;
+}
+#endif
+
+#if defined(ROXLU_IMPLEMENTATION)
+static std::string rx_string_replace(std::string str, char from, char to) {
+  std::replace(str.begin(), str.end(), from, to);
+  return str;
+}
+#endif
+
+#if defined(ROXLU_IMPLEMENTATION)
+static std::string rx_strip_filename(std::string path) {
+  std::string directory;
+  path = rx_string_replace(path, '\\', '/');
+  path = rx_string_replace(path, "//", "/");
+  const size_t last_slash_idx = path.rfind('/');
+
+  if(std::string::npos != last_slash_idx) {
+    directory = path.substr(0, last_slash_idx + 1);
+  }
+
+#if defined(_WIN32)
+  directory = rx_string_replace(directory, '/', '\\');
+#endif
+
+  return directory;
+}
+#endif
+
+#if defined(ROXLU_IMPLEMENTATION)
+static std::string rx_strip_dir(std::string path) {
+  std::string filename;;
+  path = rx_string_replace(path, '\\', '/');
+  path = rx_string_replace(path, "//", "/");
+
+  const size_t last_slash_idx = path.rfind('/');
+  if(last_slash_idx == std::string::npos) {
+    return path;
+  }
+
+  if(std::string::npos != last_slash_idx) {
+    filename = path.substr(last_slash_idx + 1, path.size());
+  }
+
+  return filename;
+}
+#endif
+
+#if defined(ROXLU_IMPLEMENTATION)
+static bool rx_create_dir(std::string path) {
+#ifdef _WIN32
+  if(_mkdir(path.c_str()) != 0) {
+    if(errno == ENOENT) { 
+      printf("Cannot create directory: %s (ENOENT)\n", path.c_str());
+      return false;
+    }
+    else if(errno == EEXIST) {
+      printf("Cannot create directory: %s (EEXIST)\n", path.c_str());
+    }
+  }
+  return true;
+
+#else
+  if(mkdir(path.c_str(), 0777) != 0) {
+    return false;
+  }
+  return true;
+#endif
+}
+#endif
+
+#if defined(ROXLU_IMPLEMENTATION)
+static std::string rx_get_file_ext(std::string filepath) {
+  size_t pos = filepath.rfind(".");
+  std::string result = "";
+
+  if(pos == std::string::npos) {
+    return result;
+  }
+
+  std::string ext = filepath.substr(pos + 1, (filepath.size() - pos));
+  return ext;
+}
+#endif
+
+#if defined(ROXLU_IMPLEMENTATION)
+static bool rx_create_path(std::string path) {
+
+#ifdef _WIN32
+  std::string drive;
+  for(int i = 0; i < path.size()-1; ++i) {
+    if(path[i] == ':' && path[i + 1] == '\\') {
+      break;
+    }
+    drive.push_back(path[i]);
+  }
+  path = path.substr(drive.size() + 2);
+  drive = drive + ":";
+
+#endif
+
+  std::vector<std::string> dirs;
+  while(path.length() > 0) {
+
+     
+#ifdef _WIN32
+    int index = path.find('\\'); // win 
+#else
+    int index = path.find('/'); // posix
+#endif
+    std::string dir = (index == -1 ) ? path : path.substr(0, index);
+
+    if(dir.length() > 0) {
+      dirs.push_back(dir);
+    }
+    if(index + 1 >= path.length() || index == -1) {
+      break;
+    }
+    path = path.substr(index + 1);
+  }
+    
+  struct stat s;
+  std::string dir_path;
+#ifdef _WIN32
+  dir_path = drive;
+#endif
+  for(unsigned int i = 0; i < dirs.size(); i++) {
+#ifdef _WIN32
+    dir_path += "\\";
+#else
+    dir_path += "/";
+#endif
+
+    dir_path += dirs[i];
+    if(stat(dir_path.c_str(), &s) != 0) {
+      if(!rx_create_dir(dir_path.c_str())) {
+        printf("ERROR: cannot create directory: %s\n", dir_path.c_str());
+        return false;
+      }
+    }
+  }
+  return true;
+}
+#endif
+
+#if defined(ROXLU_IMPLEMENTATION)
+static std::vector<std::string> rx_get_files(std::string path, std::string ext) { 
+  std::vector<std::string> result;
+  DIR* dir;
+  struct dirent* ent;
+  if((dir = opendir(path.c_str())) != NULL) {
+    while((ent = readdir(dir)) != NULL) {
+      if(ent->d_type == DT_REG) {
+        std::string file_path = path +"/" +ent->d_name;
+
+        if(ext.size()) {
+          std::string file_ext = rx_get_file_ext(file_path);
+          if(file_ext != ext) {
+            continue;
+          }
+        }
+
+        result.push_back(file_path);
+      }
+    }
+    closedir(dir);
+  }
+  return result;
+}
+#endif
+
+#if defined(ROXLU_IMPLEMENTATION)
+static std::string rx_norm_path(std::string path) {
+#if defined(_WIN32)
+  std::string from = "/";
+  std::string to = "\\";
+  size_t start_pos = 0;
+  while((start_pos = path.find(from, start_pos)) != std::string::npos) {
+    path.replace(start_pos, from.length(), to);
+    start_pos += to.length();
+  }
+  return path;
+#else
+  return path;
+#endif
+}
+#endif // ROXLU_IMPLEMENTATION 
+
+#if defined(ROXLU_IMPLEMENTATION)
 static int rx_to_int(const std::string& v) {
   int r = 0;
   std::stringstream ss(v);
   ss >> r;
   return r;
 }
+#endif // ROXLU_IMPLEMENTATION
 
+#if defined(ROXLU_IMPLEMENTATION)
 static float rx_to_float(const std::string& v) {
   float r = 0.0f;
   std::stringstream ss(v);
   ss >> r;
   return r;
 }
+#endif // ROXLU_IMPLEMENTATION
 
-// split a string on the given delmiter
+#if defined(ROXLU_IMPLEMENTATION)
 static std::vector<std::string> rx_split(std::string str, char delim) {
   std::string line;
   std::stringstream ss(str);
@@ -450,8 +1234,10 @@ static std::vector<std::string> rx_split(std::string str, char delim) {
   }
   return result;
 }
+#endif // ROXLU_IMPLEMENTATION
 
-// see: https://github.com/joyent/libuv/blob/master/src/unix/linux-core.c uv__hrtime()
+
+#if defined(ROXLU_IMPLEMENTATION)
 static uint64_t rx_hrtime() {
 #if defined(__APPLE__) 
   mach_timebase_info_data_t info;
@@ -486,13 +1272,17 @@ static uint64_t rx_hrtime() {
   return 0;
 #endif
 };
+#endif // ROXLU_IMPLEMENTATION
 
+#if defined(ROXLU_IMPLEMENTATION)
 static float rx_millis() {
   static uint64_t start = rx_hrtime();
   int64_t d = (rx_hrtime() - start);
   return d / 1000000000.0;
 }
+#endif // ROXLU_IMPLEMENTATION
 
+#if defined(ROXLU_IMPLEMENTATION)
 static std::string rx_read_file(std::string filepath) {
   std::ifstream ifs(filepath.c_str(), std::ios::in);
   if(!ifs.is_open()) {
@@ -501,7 +1291,9 @@ static std::string rx_read_file(std::string filepath) {
   std::string str((std::istreambuf_iterator<char>(ifs)) , std::istreambuf_iterator<char>());
   return str;
 }
+#endif // ROXLU_IMPLEMENTATION
 
+#if defined(ROXLU_IMPLEMENTATION)
 static std::string rx_strftime(const std::string fmt) {
   time_t t;
   struct tm* info;
@@ -512,29 +1304,40 @@ static std::string rx_strftime(const std::string fmt) {
   std::string result(buf);
   return result;
 }
+#endif // ROXLU_IMPLEMENTATION
 
+#if defined(ROXLU_IMPLEMENTATION)
 static int rx_get_year() {
   return rx_to_int(rx_strftime("%Y"));
 }
+#endif // ROXLU_IMPLEMENTATION
 
+#if defined(ROXLU_IMPLEMENTATION)
 static int rx_get_month() {
- return rx_to_int(rx_strftime("%m"));
+  return rx_to_int(rx_strftime("%m"));
 }
+#endif // ROXLU_IMPLEMENTATION
 
+#if defined(ROXLU_IMPLEMENTATION)
 static int rx_get_day() {
- return rx_to_int(rx_strftime("%d"));
+  return rx_to_int(rx_strftime("%d"));
 }
+#endif // ROXLU_IMPLEMENTATION
 
+#if defined(ROXLU_IMPLEMENTATION)
 static int rx_get_hour() {
- return rx_to_int(rx_strftime("%H"));
+  return rx_to_int(rx_strftime("%H"));
 }
+#endif
 
+#if defined(ROXLU_IMPLEMENTATION)
 static int rx_get_minute() {
- return rx_to_int(rx_strftime("%M"));
+  return rx_to_int(rx_strftime("%M"));
 }
+#endif
 
 #if defined(ROXLU_USE_OPENGL)
-
+#if defined(ROXLU_IMPLEMENTATION)
 static void rx_print_shader_link_info(GLuint shader) {
   GLint status = 0;
   GLint count = 0;
@@ -555,7 +1358,10 @@ static void rx_print_shader_link_info(GLuint shader) {
     }
   }
 }
+#endif // ROXLU_IMPLEMENTATION
+#endif
   
+#if defined(ROXLU_IMPLEMENTATION)
 static void rx_print_shader_compile_info(GLuint shader) {
   GLint status = 0;
   GLint count = 0;
@@ -575,14 +1381,18 @@ static void rx_print_shader_compile_info(GLuint shader) {
     }
   }
 }
+#endif // ROXLU_IMPLEMENTATION
   
+#if defined(ROXLU_IMPLEMENTATION)
 static GLuint rx_create_program(GLuint vert, GLuint frag) {
   GLuint prog = glCreateProgram();
   glAttachShader(prog, vert);
   glAttachShader(prog, frag);
   return prog;
 }
+#endif // ROXLU_IMPLEMENTATION
   
+#if defined(ROXLU_IMPLEMENTATION)
 static GLuint rx_create_shader(GLenum type, const char* src) {
   GLuint s = glCreateShader(type);
   glShaderSource(s, 1, &src,  NULL);
@@ -590,8 +1400,11 @@ static GLuint rx_create_shader(GLenum type, const char* src) {
   rx_print_shader_compile_info(s);
   return s;
 }
+#endif // ROXLU_IMPLEMENTATION
 
-static int rx_create_shader_from_file(GLenum type, std::string filepath) {
+
+#if defined(ROXLU_IMPLEMENTATION)
+static GLuint rx_create_shader_from_file(GLenum type, std::string filepath) {
 
   std::string source = rx_read_file(filepath);
   if(!source.size()) {
@@ -601,7 +1414,9 @@ static int rx_create_shader_from_file(GLenum type, std::string filepath) {
   
   return rx_create_shader(type, source.c_str());
 }
+#endif // ROXLU_IMPLEMENTATION
 
+#if defined(ROXLU_IMPLEMENTATION)
 static GLuint rx_create_program_with_attribs(GLuint vert, 
                                              GLuint frag, 
                                              int nattribs, 
@@ -620,8 +1435,10 @@ static GLuint rx_create_program_with_attribs(GLuint vert,
 
   return prog;
 }
+#endif // ROXLU_IMPLEMENTATION
 
 
+#if defined(ROXLU_IMPLEMENTATION)
 static GLint rx_get_uniform_location(GLuint prog, std::string name) {
 #if !defined(NDEBUG)
   GLint loc = glGetUniformLocation(prog, name.c_str());
@@ -634,15 +1451,21 @@ static GLint rx_get_uniform_location(GLuint prog, std::string name) {
   
   return loc;
 }
+#endif // ROXLU_IMPLEMENTATION
 
+#if defined(ROXLU_IMPLEMENTATION)
 static void rx_uniform_1i(GLuint prog, std::string name, GLint v) {
   glUniform1i(rx_get_uniform_location(prog, name), v);
 }
+#endif // ROXLU_IMPLEMENTATION
 
+#if defined(ROXLU_IMPLEMENTATION)
 static void rx_uniform_1f(GLuint prog, std::string name, GLfloat v) {
   glUniform1f(rx_get_uniform_location(prog, name), v);
 }
+#endif // ROXLU_IMPLEMENTATION
 
+#if defined(ROXLU_IMPLEMENTATION)
 static void rx_uniform_mat4fv(GLuint prog, 
                               std::string name, 
                               GLsizei count, 
@@ -651,53 +1474,20 @@ static void rx_uniform_mat4fv(GLuint prog,
 {
   glUniformMatrix4fv(rx_get_uniform_location(prog, name), count, transpose, value);
 }
+#endif // ROXLU_IMPLEMENTATION
 
-class Shader {                                                 /* represents a GL shader - works only with shaders loaded from file */
- public:      
-  Shader():type(-1),id(-1){}
-  ~Shader() {}                                                 /* @todo - we should clean the resources here */
-  Shader& load(GLenum type, std::string filepath,              /* load a shader file for the given type */
-               std::string extra = "");                        /* you can pass extra data to the shader which is prepended */
-  Shader& reload();                                            /* reload the previously loaded file */
-  Shader& compile();                                           /* compile the shader */
-
- public:
-  std::string filepath;                                        /* filepath to the shader */
-  std::string file_source;                                     /* the source we loaded() */
-  std::string extra_source;                                    /* source of the shader that is loaded */
-  int type;                                                    /* the shader type, eg. GL_VERTEX_SHADER */
-  int id;                                                      /* the ID of the shader */
-};
-
-class Program {
- public:
-  Program():id(-1){};
-  ~Program();                                                    /* @todo - we should clean the resources here */
-  Program& add(Shader* s);                                       /* add a shader when you want to have ownership; you don't need to compile() it yourself */
-  Program& create(GLenum type, std::string filepath,             /* create a shader and add it, we take ownership */
-                  std::string extra = "");                       /* you can pass extra data to the shader, which is prepended */
-  Program& link(int nattribs = 0, const char** attribs = NULL,   /* compiles + links the shaders, if you want to bind attrib or frag locations pass them */
-                int nfrags = 0, const char** frags = NULL);      /* the output frag locations */
-  Program& recompile();                                          /* recompiles the shaders  + LINKS it for you! */
-
- public:
-  std::vector<std::string> attribs;                              /* any attributes added to link() */
-  std::vector<std::string> frags;                                /* output fragment locations */
-  std::vector<Shader*> shaders;                                  /* the added shaders */
-  std::vector<Shader*> created_shaders;                          /* allocated shaders; we have ownership, see create() */
-  int id;
-};
-
-
-inline Program::~Program() {
+#if defined(ROXLU_IMPLEMENTATION)
+Program::~Program() {
   for(std::vector<Shader*>::iterator it = created_shaders.begin(); it != created_shaders.end(); ++it) {
     delete *it;
   }
   shaders.clear();
   created_shaders.clear();
 }
+#endif // ROXLU_IMPLEMENTATION
 
-inline Program& Program::add(Shader* s) {
+#if defined(ROXLU_IMPLEMENTATION)
+Program& Program::add(Shader* s) {
 
   if(id < 0) {
     id = glCreateProgram();
@@ -715,8 +1505,10 @@ inline Program& Program::add(Shader* s) {
   shaders.push_back(s);
   return *this;
 }
+#endif // ROXLU_IMPLEMENTATION
 
-inline Program& Program::create(GLenum type, 
+#if defined(ROXLU_IMPLEMENTATION)
+Program& Program::create(GLenum type, 
                                 std::string filepath, 
                                 std::string extraSource) 
 {
@@ -725,11 +1517,13 @@ inline Program& Program::create(GLenum type,
   created_shaders.push_back(s);
   return add(s);
 }
+#endif // ROXLU_IMPLEMENTATION
 
-inline Program& Program::link(int nattribs, 
-                              const char** atts, 
-                              int nfrags, 
-                              const char** fraglocs) 
+#if defined(ROXLU_IMPLEMENTATION)
+Program& Program::link(int nattribs, 
+                       const char** atts, 
+                       int nfrags, 
+                       const char** fraglocs) 
 {
 
   if(id < 0) {
@@ -759,8 +1553,10 @@ inline Program& Program::link(int nattribs,
 
   return *this;
 }
+#endif // ROXLU_IMPLEMENTATION
 
-inline Program& Program::recompile() {
+#if defined(ROXLU_IMPLEMENTATION)
+Program& Program::recompile() {
 
   if(id < 0) {
     printf("Error: cannot recompile the program because we've not been created yet.\n");
@@ -785,8 +1581,10 @@ inline Program& Program::recompile() {
 
   return *this;
 }
+#endif // ROXLU_IMPLEMENTATION
 
-inline Shader& Shader::load(GLenum t, 
+#if defined(ROXLU_IMPLEMENTATION)
+Shader& Shader::load(GLenum t, 
                             std::string fp, 
                             std::string extraSource)
 {
@@ -803,8 +1601,10 @@ inline Shader& Shader::load(GLenum t,
   type = t;
   return *this;
 }
+#endif // ROXLU_IMPLEMENTATION
 
-inline Shader& Shader::compile() {
+#if defined(ROXLU_IMPLEMENTATION)
+Shader& Shader::compile() {
 
   if(id < 0) {
     id = glCreateShader(type);
@@ -823,13 +1623,16 @@ inline Shader& Shader::compile() {
   rx_print_shader_compile_info(id);
   return *this;
 }
+#endif // ROXLU_IMPLEMENTATION
 
-inline Shader& Shader::reload() {
+#if defined(ROXLU_IMPLEMENTATION)
+Shader& Shader::reload() {
   return load(type, filepath, extra_source);
 }
+#endif // ROXLU_IMPLEMENTATION
 
 #if defined(ROXLU_USE_PNG)
-
+#if defined(ROXLU_IMPLEMENTATION)
 static GLuint rx_create_texture(std::string filepath, 
                                 int internalFormat, 
                                 int format, 
@@ -887,13 +1690,13 @@ static GLuint rx_create_texture(std::string filepath,
   pix = NULL;
   return tex;
 }
+#endif // ROXLU_IMPLEMENTATION
 #endif // nested ROXLU_USE_PNG
-
 #endif // ROXLU_USE_OPENGL
 
 
 #if defined(ROXLU_USE_PNG)
-
+#if defined(ROXLU_IMPLEMENTATION)
 static bool rx_save_png(std::string filepath, 
                         unsigned char* pixels, 
                         int w, 
@@ -1003,9 +1806,10 @@ static bool rx_save_png(std::string filepath,
   fclose(fp);
   
   return true;
-  
 }
+#endif // ROXLU_IMPLEMENTATION
   
+#if defined(ROXLU_IMPLEMENTATION)
 static bool rx_load_png(std::string filepath, 
                         unsigned char** pixels,
                         int& width,
@@ -1145,140 +1949,107 @@ static bool rx_load_png(std::string filepath,
   fclose(fp);
   return true;
 }
-  
+#endif // ROXLU_IMPLEMENTATION  
 #endif // ROXLU_USE_PNG
 
 // MATH
 // -------------------------------------------------------------------------
 #if defined(ROXLU_USE_MATH)
+#if defined(ROXLU_IMPLEMTATION)
+template<class T> inline Vec2<T>::Vec2() : x(), y() {}
+template<class T> inline Vec2<T>::Vec2(T x, T y) : x(x), y(y) {}
+template<class T> inline Vec2<T>::Vec2(const Vec2<T>& o) : x(o.x), y(o.y) {}
+template<class T> inline Vec2<T>::Vec2(T f) : x(f), y(f) {}
+template<class T> inline void Vec2<T>::set(T vx, T vy) { x = vx; y = vy; } 
+template<class T> inline T* Vec2<T>::ptr() { return &x; }
+template<class T> inline T& Vec2<T>::operator [](const unsigned int dx) { return *(&x + dx); } 
+template<class T> inline Vec2<T> Vec2<T>::operator + () const { return Vec2<T>(+x, +y); };
+template<class T> inline Vec2<T> Vec2<T>::operator - () const { return Vec2<T>(-x, -y); };
+template<class T> inline Vec2<T> Vec2<T>::operator + (const Vec2<T>& o) const { return Vec2<T>(x + o.x, y + o.y); } 
+template<class T> inline Vec2<T> Vec2<T>::operator - (const Vec2<T>& o) const { return Vec2<T>(x - o.x, y - o.y); } 
+template<class T> inline Vec2<T> Vec2<T>::operator * (const Vec2<T>& o) const { return Vec2<T>(x * o.x, y * o.y); } 
+template<class T> inline Vec2<T> Vec2<T>::operator / (const Vec2<T>& o) const { return Vec2<T>(x / o.x, y / o.y); } 
+template<class T> inline Vec2<T> Vec2<T>::operator + (float s) const { return Vec2<T>(x + s, y + s); } 
+template<class T> inline Vec2<T> Vec2<T>::operator - (float s) const { return Vec2<T>(x - s, y - s); } 
+template<class T> inline Vec2<T> Vec2<T>::operator * (float s) const { return Vec2<T>(x * s, y * s); } 
+template<class T> inline Vec2<T> Vec2<T>::operator / (float s) const { return Vec2<T>(x / s, y / s); } 
+template<class T> inline Vec2<T> operator + (float s, const Vec2<T>& o) { return Vec2<T>(s + o.x, s + o.y); } 
+template<class T> inline Vec2<T> operator - (float s, const Vec2<T>& o) { return Vec2<T>(s - o.x, s - o.y); } 
+template<class T> inline Vec2<T> operator * (float s, const Vec2<T>& o) { return Vec2<T>(s * o.x, s * o.y); } 
+template<class T> inline Vec2<T> operator / (float s, const Vec2<T>& o) { return Vec2<T>(s / o.x, s / o.y); } 
+template<class T> inline Vec2<T>& Vec2<T>::operator += (const Vec2<T>& o) { return *this = *this + o; }
+template<class T> inline Vec2<T>& Vec2<T>::operator -= (const Vec2<T>& o) { return *this = *this - o; }
+template<class T> inline Vec2<T>& Vec2<T>::operator *= (const Vec2<T>& o) { return *this = *this * o; }
+template<class T> inline Vec2<T>& Vec2<T>::operator /= (const Vec2<T>& o) { return *this = *this / o; }
+template<class T> inline Vec2<T>& Vec2<T>::operator += (float s) { return *this = *this + s; } 
+template<class T> inline Vec2<T>& Vec2<T>::operator -= (float s) { return *this = *this - s; } 
+template<class T> inline Vec2<T>& Vec2<T>::operator *= (float s) { return *this = *this * s; } 
+template<class T> inline Vec2<T>& Vec2<T>::operator /= (float s) { return *this = *this / s; } 
+template<class T> inline bool Vec2<T>::operator == (const Vec2<T>& o) const { return x == o.x && y == o.y; } 
+template<class T> inline bool Vec2<T>::operator != (const Vec2<T>& o) const { return x != o.x || y == o.y; } 
+template<class T> inline float length(const Vec2<T>& o) { return sqrtf(o.x * o.x + o.y * o.y); } 
+template<class T> inline float dot(const Vec2<T> &a, const Vec2<T> &b) { return a.x * b.x + a.y * b.y; }
+template<class T> inline float heighest(const Vec2<T> &v) { return fmaxf(v.x, v.y); }
+template<class T> inline float lowest(const Vec2<T> &v) { return fminf(v.x, v.y); }
+template<class T> inline Vec2<T> lowest(const Vec2<T> &a, const Vec2<T> &b) { return Vec2<T>(fmaxf(a.x, b.x), fmaxf(a.y, b.y)); }
+template<class T> inline Vec2<T> heighest(const Vec2<T> &a, const Vec2<T> &b) { return Vec2<T>(fminf(a.x, b.x), fminf(a.y, b.y)); }
+template<class T> inline Vec2<T> floor(const Vec2<T> &v) { return Vec2<T>(floorf(v.x), floorf(v.y)); }
+template<class T> inline Vec2<T> ceil(const Vec2<T> &v) { return Vec2<T>(ceilf(v.x), ceilf(v.y)); }
+template<class T> inline Vec2<T> abs(const Vec2<T> &v) { return Vec2<T>(fabsf(v.x), fabsf(v.y)); }
+template<class T> inline Vec2<T> fract(const Vec2<T> &v) { return v - floor(v); }
+template<class T> inline Vec2<T> normalized(const Vec2<T> &v) { T l = length(v); if(!l) { return T(0); } else return v / l; }
+template<class T> inline void Vec2<T>::print() { printf("x: %f, y: %f\n", x, y); } 
+#endif // ROXLU_IMPLEMENTATION
 
- template<class T>
-   class Vec2 {
+// ----------------------------------------------------------------------------------
+#if defined(ROXLU_IMPLEMENTATION)
+template<class T> inline Vec3<T>::Vec3() : x(), y(), z() {}
+template<class T> inline Vec3<T>::Vec3(T x, T y, T z) : x(x), y(y), z(z) {}
+template<class T> inline Vec3<T>::Vec3(const Vec3<T>& o) : x(o.x), y(o.y), z(o.z) {}
+template<class T> inline Vec3<T>::Vec3(T f) : x(f), y(f), z(f) {}
+template<class T> inline void Vec3<T>::set(const float xv, const float yv, const float zv) { x = xv; y = yv; z = zv; }
+template<class T> inline T* Vec3<T>::ptr() { return &x; }
+template<class T> inline T& Vec3<T>::operator [](const unsigned int dx) { return *(&x + dx); } 
+template<class T> inline Vec3<T> Vec3<T>::operator + () const { return Vec3<T>(+x, +y, +z); };
+template<class T> inline Vec3<T> Vec3<T>::operator - () const { return Vec3<T>(-x, -y, -z); };
+template<class T> inline Vec3<T> Vec3<T>::operator + (const Vec3<T>& o) const { return Vec3<T>(x + o.x, y + o.y, z + o.z); } 
+template<class T> inline Vec3<T> Vec3<T>::operator - (const Vec3<T>& o) const { return Vec3<T>(x - o.x, y - o.y, z - o.z); } 
+template<class T> inline Vec3<T> Vec3<T>::operator * (const Vec3<T>& o) const { return Vec3<T>(x * o.x, y * o.y, z * o.z); } 
+template<class T> inline Vec3<T> Vec3<T>::operator / (const Vec3<T>& o) const { return Vec3<T>(x / o.x, y / o.y, z / o.z); } 
+template<class T> inline Vec3<T> Vec3<T>::operator + (float s) const { return Vec3<T>(x + s, y + s, z + s); } 
+template<class T> inline Vec3<T> Vec3<T>::operator - (float s) const { return Vec3<T>(x - s, y - s, z - s); } 
+template<class T> inline Vec3<T> Vec3<T>::operator * (float s) const { return Vec3<T>(x * s, y * s, z * s); } 
+template<class T> inline Vec3<T> Vec3<T>::operator / (float s) const { return Vec3<T>(x / s, y / s, z / s); } 
+template<class T> inline Vec3<T> operator + (float s, const Vec3<T>& o) { return Vec3<T>(s + o.x, s + o.y, s + o.z); }  
+template<class T> inline Vec3<T> operator - (float s, const Vec3<T>& o) { return Vec3<T>(s - o.x, s - o.y, s - o.z); } 
+template<class T> inline Vec3<T> operator * (float s, const Vec3<T>& o) { return Vec3<T>(s * o.x, s * o.y, s * o.z); } 
+template<class T> inline Vec3<T> operator / (float s, const Vec3<T>& o) { return Vec3<T>(s / o.x, s / o.y, s / o.z); } 
+template<class T> inline Vec3<T>& Vec3<T>::operator += (const Vec3<T>& o) { return *this = *this + o; }
+template<class T> inline Vec3<T>& Vec3<T>::operator -= (const Vec3<T>& o) { return *this = *this - o; }
+template<class T> inline Vec3<T>& Vec3<T>::operator *= (const Vec3<T>& o) { return *this = *this * o; }
+template<class T> inline Vec3<T>& Vec3<T>::operator /= (const Vec3<T>& o) { return *this = *this / o; }
+template<class T> inline Vec3<T>& Vec3<T>::operator += (float s) { return *this = *this + s; } 
+template<class T> inline Vec3<T>& Vec3<T>::operator -= (float s) { return *this = *this - s; } 
+template<class T> inline Vec3<T>& Vec3<T>::operator *= (float s) { return *this = *this * s; } 
+template<class T> inline Vec3<T>& Vec3<T>::operator /= (float s) { return *this = *this / s; } 
+template<class T> inline bool Vec3<T>::operator == (const Vec3<T>& o) const { return x == o.x && y == o.y && z == o.z; } 
+template<class T> inline bool Vec3<T>::operator != (const Vec3<T>& o) const { return x != o.x || y == o.y || z == o.z; } 
+template<class T> inline float length(const Vec3<T>& o) { return sqrtf(o.x * o.x + o.y * o.y + o.z * o.z); } 
+template<class T> inline float dot(const Vec3<T> &a, const Vec3<T> &b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+template<class T> inline float heighest(const Vec3<T> &v) { return fmaxf(fmaxf(v.x, v.y), v.z); }
+template<class T> inline float lowest(const Vec3<T> &v) { return fminf(fminf(v.x, v.y), v.z); }
+template<class T> inline Vec3<T> heighest(const Vec3<T> &a, const Vec3<T> &b) { return Vec3<T>(fmaxf(a.x, b.x), fmaxf(a.y, b.y), fmaxf(a.z, b.z)); }
+template<class T> inline Vec3<T> lowest(const Vec3<T> &a, const Vec3<T> &b) { return Vec3<T>(fminf(a.x, b.x), fminf(a.y, b.y), fminf(a.z, b.z)); }
+template<class T> inline Vec3<T> floor(const Vec3<T> &v) { return Vec3<T>(floorf(v.x), floorf(v.y), floorf(v.z)); }
+template<class T> inline Vec3<T> ceil(const Vec3<T> &v) { return Vec3<T>(ceilf(v.x), ceilf(v.y), ceilf(v.z)); }
+template<class T> inline Vec3<T> abs(const Vec3<T> &v) { return Vec3<T>(fabsf(v.x), fabsf(v.y), fabsf(v.z)); }
+template<class T> inline Vec3<T> fract(const Vec3<T> &v) { return v - floor(v); }
+template<class T> inline Vec3<T> normalized(const Vec3<T> &v) { T l = length(v); if(!l) { return T(0); } else return v / l; }
+template<class T> inline Vec3<T> cross(const Vec3<T> &a, const Vec3<T> &b) { return Vec3<T>(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }
+template<class T> inline Vec3<T> perpendicular(const Vec3<T>& v) {  return abs(v.x) > abs(v.z) ? Vec3<T>(-v.y, v.x, 0.0) : Vec3<T>(0.0, -v.z, v.y); }
+template<class T> inline void Vec3<T>::print() { printf("x: %f, y: %f, z: %f\n", x, y, z); } 
 
- public:
-   Vec2() : x(), y() {}
-   Vec2(T x, T y) : x(x), y(y) {}
-   Vec2(const Vec2<T>& o) : x(o.x), y(o.y) {}
-   Vec2(T f) : x(f), y(f) {}
-
-  void set(T vx, T vy) { x = vx; y = vy; } 
-  T* ptr() { return &x; }
-  T& operator [](const unsigned int dx) { return *(&x + dx); } 
-  
-  Vec2<T> operator + () const { return Vec2<T>(+x, +y); };
-  Vec2<T> operator - () const { return Vec2<T>(-x, -y); };
-  Vec2<T> operator + (const Vec2<T>& o) const { return Vec2<T>(x + o.x, y + o.y); } 
-  Vec2<T> operator - (const Vec2<T>& o) const { return Vec2<T>(x - o.x, y - o.y); } 
-  Vec2<T> operator * (const Vec2<T>& o) const { return Vec2<T>(x * o.x, y * o.y); } 
-  Vec2<T> operator / (const Vec2<T>& o) const { return Vec2<T>(x / o.x, y / o.y); } 
-  Vec2<T> operator + (float s) const { return Vec2<T>(x + s, y + s); } 
-  Vec2<T> operator - (float s) const { return Vec2<T>(x - s, y - s); } 
-  Vec2<T> operator * (float s) const { return Vec2<T>(x * s, y * s); } 
-  Vec2<T> operator / (float s) const { return Vec2<T>(x / s, y / s); } 
-
-  friend Vec2<T> operator + (float s, const Vec2<T>& o) { return Vec2<T>(s + o.x, s + o.y); } 
-  friend Vec2<T> operator - (float s, const Vec2<T>& o) { return Vec2<T>(s - o.x, s - o.y); } 
-  friend Vec2<T> operator * (float s, const Vec2<T>& o) { return Vec2<T>(s * o.x, s * o.y); } 
-  friend Vec2<T> operator / (float s, const Vec2<T>& o) { return Vec2<T>(s / o.x, s / o.y); } 
-
-  Vec2<T>& operator += (const Vec2<T>& o) { return *this = *this + o; }
-  Vec2<T>& operator -= (const Vec2<T>& o) { return *this = *this - o; }
-  Vec2<T>& operator *= (const Vec2<T>& o) { return *this = *this * o; }
-  Vec2<T>& operator /= (const Vec2<T>& o) { return *this = *this / o; }
-  Vec2<T>& operator += (float s) { return *this = *this + s; } 
-  Vec2<T>& operator -= (float s) { return *this = *this - s; } 
-  Vec2<T>& operator *= (float s) { return *this = *this * s; } 
-  Vec2<T>& operator /= (float s) { return *this = *this / s; } 
-
-  bool operator == (const Vec2<T>& o) const { return x == o.x && y == o.y; } 
-  bool operator != (const Vec2<T>& o) const { return x != o.x || y == o.y; } 
-
-  friend float length(const Vec2<T>& o) { return sqrtf(o.x * o.x + o.y * o.y); } 
-  friend float dot(const Vec2<T> &a, const Vec2<T> &b) { return a.x * b.x + a.y * b.y; }
-  friend float heighest(const Vec2<T> &v) { return fmaxf(v.x, v.y); }
-  friend float lowest(const Vec2<T> &v) { return fminf(v.x, v.y); }
-
-  friend Vec2<T> lowest(const Vec2<T> &a, const Vec2<T> &b) { return Vec2<T>(fmaxf(a.x, b.x), fmaxf(a.y, b.y)); }
-  friend Vec2<T> heighest(const Vec2<T> &a, const Vec2<T> &b) { return Vec2<T>(fminf(a.x, b.x), fminf(a.y, b.y)); }
-  friend Vec2<T> floor(const Vec2<T> &v) { return Vec2<T>(floorf(v.x), floorf(v.y)); }
-  friend Vec2<T> ceil(const Vec2<T> &v) { return Vec2<T>(ceilf(v.x), ceilf(v.y)); }
-  friend Vec2<T> abs(const Vec2<T> &v) { return Vec2<T>(fabsf(v.x), fabsf(v.y)); }
-  friend Vec2<T> fract(const Vec2<T> &v) { return v - floor(v); }
-  friend Vec2<T> normalized(const Vec2<T> &v) { T l = length(v); if(!l) { return T(0); } else return v / l; }
-
-  void print() { printf("x: %f, y: %f\n", x, y); } 
-
- public:
-  T x;
-  T y;
- };
-
-
- // ----------------------------------------------------------------------------------
-
- template<class T>
-   class Vec3 {
-
- public:
-   Vec3() : x(), y(), z() {}
-   Vec3(T x, T y, T z) : x(x), y(y), z(z) {}
-   Vec3(const Vec3<T>& o) : x(o.x), y(o.y), z(o.z) {}
-   Vec3(T f) : x(f), y(f), z(f) {}
-
-   void set(const float xv, const float yv, const float zv) { x = xv; y = yv; z = zv; }
-   T* ptr() { return &x; }
-   T& operator [](const unsigned int dx) { return *(&x + dx); } 
-  
-   Vec3<T> operator + () const { return Vec3<T>(+x, +y, +z); };
-   Vec3<T> operator - () const { return Vec3<T>(-x, -y, -z); };
-   Vec3<T> operator + (const Vec3<T>& o) const { return Vec3<T>(x + o.x, y + o.y, z + o.z); } 
-   Vec3<T> operator - (const Vec3<T>& o) const { return Vec3<T>(x - o.x, y - o.y, z - o.z); } 
-   Vec3<T> operator * (const Vec3<T>& o) const { return Vec3<T>(x * o.x, y * o.y, z * o.z); } 
-   Vec3<T> operator / (const Vec3<T>& o) const { return Vec3<T>(x / o.x, y / o.y, z / o.z); } 
-   Vec3<T> operator + (float s) const { return Vec3<T>(x + s, y + s, z + s); } 
-   Vec3<T> operator - (float s) const { return Vec3<T>(x - s, y - s, z - s); } 
-   Vec3<T> operator * (float s) const { return Vec3<T>(x * s, y * s, z * s); } 
-   Vec3<T> operator / (float s) const { return Vec3<T>(x / s, y / s, z / s); } 
-
-   friend Vec3<T> operator + (float s, const Vec3<T>& o) { return Vec3<T>(s + o.x, s + o.y, s + o.z); } 
-   friend Vec3<T> operator - (float s, const Vec3<T>& o) { return Vec3<T>(s - o.x, s - o.y, s - o.z); } 
-   friend Vec3<T> operator * (float s, const Vec3<T>& o) { return Vec3<T>(s * o.x, s * o.y, s * o.z); } 
-   friend Vec3<T> operator / (float s, const Vec3<T>& o) { return Vec3<T>(s / o.x, s / o.y, s / o.z); } 
-
-   Vec3<T>& operator += (const Vec3<T>& o) { return *this = *this + o; }
-   Vec3<T>& operator -= (const Vec3<T>& o) { return *this = *this - o; }
-   Vec3<T>& operator *= (const Vec3<T>& o) { return *this = *this * o; }
-   Vec3<T>& operator /= (const Vec3<T>& o) { return *this = *this / o; }
-   Vec3<T>& operator += (float s) { return *this = *this + s; } 
-   Vec3<T>& operator -= (float s) { return *this = *this - s; } 
-   Vec3<T>& operator *= (float s) { return *this = *this * s; } 
-   Vec3<T>& operator /= (float s) { return *this = *this / s; } 
-
-   bool operator == (const Vec3<T>& o) const { return x == o.x && y == o.y && z == o.z; } 
-   bool operator != (const Vec3<T>& o) const { return x != o.x || y == o.y || z == o.z; } 
-
-   friend float length(const Vec3<T>& o) { return sqrtf(o.x * o.x + o.y * o.y + o.z * o.z); } 
-   friend float dot(const Vec3<T> &a, const Vec3<T> &b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
-   friend float heighest(const Vec3<T> &v) { return fmaxf(fmaxf(v.x, v.y), v.z); }
-   friend float lowest(const Vec3<T> &v) { return fminf(fminf(v.x, v.y), v.z); }
-   friend Vec3<T> heighest(const Vec3<T> &a, const Vec3<T> &b) { return Vec3<T>(fmaxf(a.x, b.x), fmaxf(a.y, b.y), fmaxf(a.z, b.z)); }
-   friend Vec3<T> lowest(const Vec3<T> &a, const Vec3<T> &b) { return Vec3<T>(fminf(a.x, b.x), fminf(a.y, b.y), fminf(a.z, b.z)); }
-   friend Vec3<T> floor(const Vec3<T> &v) { return Vec3<T>(floorf(v.x), floorf(v.y), floorf(v.z)); }
-   friend Vec3<T> ceil(const Vec3<T> &v) { return Vec3<T>(ceilf(v.x), ceilf(v.y), ceilf(v.z)); }
-   friend Vec3<T> abs(const Vec3<T> &v) { return Vec3<T>(fabsf(v.x), fabsf(v.y), fabsf(v.z)); }
-   friend Vec3<T> fract(const Vec3<T> &v) { return v - floor(v); }
-   friend Vec3<T> normalized(const Vec3<T> &v) { T l = length(v); if(!l) { return T(0); } else return v / l; }
-   friend Vec3<T> cross(const Vec3<T> &a, const Vec3<T> &b) { return Vec3<T>(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }
-   friend Vec3<T> perpendicular(const Vec3<T>& v) {  return abs(v.x) > abs(v.z) ? Vec3(-v.y, v.x, 0.0) : Vec3(0.0, -v.z, v.y); }
-
-
-   void print() { printf("x: %f, y: %f, z: %f\n", x, y, z); } 
-
- public:
-   T x, y, z;
- };
-
-// lines must ly in the xy-plane; only done in 2d
+// lines must be in the xy-plane; only done in 2d
 template<class T>
 inline bool intersect(const Vec3<T>& p0, const Vec3<T>& p1, const Vec3<T>& p2, const Vec3<T>& p3, Vec3<T>& result) {
   Vec3<T> s1 = p1 - p0;
@@ -1296,101 +2067,56 @@ inline bool intersect(const Vec3<T>& p0, const Vec3<T>& p1, const Vec3<T>& p2, c
 
   return false;
 }
+#endif // ROXLU_IMPLEMENTATION
 
- // ----------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------
+#if defined(ROXLU_IMPLEMENTATION)
+template<class T> inline Vec4<T>::Vec4() : x(), y(), z(), w() {}
+template<class T> inline Vec4<T>::Vec4(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) {}
+template<class T> inline Vec4<T>::Vec4(const Vec4<T>& o) : x(o.x), y(o.y), z(o.z), w(o.w) {}
+template<class T> inline Vec4<T>::Vec4(T f) : x(f), y(f), z(f), w(f) {}
+template<class T> inline T* Vec4<T>::ptr() { return &x; }
+template<class T> inline T& Vec4<T>::operator [](const unsigned int dx) { return *(&x + dx); } 
+template<class T> inline Vec4<T> Vec4<T>::operator + () const { return Vec4<T>(+x, +y, +z, +w); };
+template<class T> inline Vec4<T> Vec4<T>::operator - () const { return Vec4<T>(-x, -y, -z, -w); };
+template<class T> inline Vec4<T> Vec4<T>::operator + (const Vec4<T>& o) const { return Vec4<T>(x + o.x, y + o.y, z + o.z, w + o.w); } 
+template<class T> inline Vec4<T> Vec4<T>::operator - (const Vec4<T>& o) const { return Vec4<T>(x - o.x, y - o.y, z - o.z, w - o.w); } 
+template<class T> inline Vec4<T> Vec4<T>::operator * (const Vec4<T>& o) const { return Vec4<T>(x * o.x, y * o.y, z * o.z, w * o.w); } 
+template<class T> inline Vec4<T> Vec4<T>::operator / (const Vec4<T>& o) const { return Vec4<T>(x / o.x, y / o.y, z / o.z, w / o.w); } 
+template<class T> inline Vec4<T> Vec4<T>::operator + (float s) const { return Vec4<T>(x + s, y + s, z + s, w + s); } 
+template<class T> inline Vec4<T> Vec4<T>::operator - (float s) const { return Vec4<T>(x - s, y - s, z - s, w - s); } 
+template<class T> inline Vec4<T> Vec4<T>::operator * (float s) const { return Vec4<T>(x * s, y * s, z * s, w * s); } 
+template<class T> inline Vec4<T> Vec4<T>::operator / (float s) const { return Vec4<T>(x / s, y / s, z / s, w / s); } 
+template<class T> inline Vec4<T> operator + (float s, const Vec4<T>& o) { return Vec4<T>(s + o.x, s + o.y, s + o.z, s + o.w); } 
+template<class T> inline Vec4<T> operator - (float s, const Vec4<T>& o) { return Vec4<T>(s - o.x, s - o.y, s - o.z, s - o.w); } 
+template<class T> inline Vec4<T> operator * (float s, const Vec4<T>& o) { return Vec4<T>(s * o.x, s * o.y, s * o.z, s * o.w); } 
+template<class T> inline Vec4<T> operator / (float s, const Vec4<T>& o) { return Vec4<T>(s / o.x, s / o.y, s / o.z, s / o.w); } 
+template<class T> inline Vec4<T>& Vec4<T>::operator += (const Vec4<T>& o) { return *this = *this + o; }
+template<class T> inline Vec4<T>& Vec4<T>::operator -= (const Vec4<T>& o) { return *this = *this - o; }
+template<class T> inline Vec4<T>& Vec4<T>::operator *= (const Vec4<T>& o) { return *this = *this * o; }
+template<class T> inline Vec4<T>& Vec4<T>::operator /= (const Vec4<T>& o) { return *this = *this / o; }
+template<class T> inline Vec4<T>& Vec4<T>::operator += (float s) { return *this = *this + s; } 
+template<class T> inline Vec4<T>& Vec4<T>::operator -= (float s) { return *this = *this - s; } 
+template<class T> inline Vec4<T>& Vec4<T>::operator *= (float s) { return *this = *this * s; } 
+template<class T> inline Vec4<T>& Vec4<T>::operator /= (float s) { return *this = *this / s; } 
+template<class T> inline bool Vec4<T>::operator == (const Vec4<T>& o) const { return x == o.x && y == o.y && z == o.z && w == o.w; } 
+template<class T> inline bool Vec4<T>::operator != (const Vec4<T>& o) const { return x != o.x || y == o.y || z == o.z || w == o.w; } 
+template<class T> inline float length(const Vec4<T>& o) { return sqrtf(o.x * o.x + o.y * o.y + o.z * o.z + o.w * o.w); }  
+template<class T> inline float dot(const Vec4<T> &a, const Vec4<T> &b) { return a.x * b.x + a.y * b.y + a.z * b.z + a.w * a.w; }
+template<class T> inline float heighest(const Vec4<T> &v) { return fmaxf(fmaxf(v.x, v.y), fmaxf(v.z, v.w)); }
+template<class T> inline float lowest(const Vec4<T> &v) { return fminf(fminf(v.x, v.y), fminf(v.z, v.w)); }
+template<class T> inline Vec4<T> heighest(const Vec4<T> &a, const Vec4<T> &b) { return Vec4<T>(fmaxf(a.x, b.x), fmaxf(a.y, b.y), fmaxf(a.z, b.z), fmaxf(a.w, b.w)); }
+template<class T> inline Vec4<T> lowest(const Vec4<T> &a, const Vec4<T> &b) { return Vec4<T>(fminf(a.x, b.x), fminf(a.y, b.y), fminf(a.z, b.z), fminf(a.w, b.w)); }
+template<class T> inline Vec4<T> floor(const Vec4<T> &v) { return Vec4<T>(floorf(v.x), floorf(v.y), floorf(v.z), floorf(v.w)); }
+template<class T> inline Vec4<T> ceil(const Vec4<T> &v) { return Vec4<T>(ceilf(v.x), ceilf(v.y), ceilf(v.z), ceilf(v.w)); }
+template<class T> inline Vec4<T> abs(const Vec4<T> &v) { return Vec4<T>(fabsf(v.x), fabsf(v.y), fabsf(v.z), fabsf(v.w)); }
+template<class T> inline Vec4<T> fract(const Vec4<T> &v) { return v - floor(v); }
+template<class T> inline Vec4<T> normalized(const Vec4<T> &v) { return v / length(v); }
+template<class T> inline void Vec4<T>::print() { printf("x: %f, y: %f, z: %f, w: %f\n", x, y, z, w); } 
+#endif // ROXLU_IMPLEMENTATION
+// ----------------------------------------------------------------------------------
 
- template<class T>
-   class Vec4 {
-
- public:
-   Vec4() : x(), y(), z(), w() {}
-   Vec4(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) {}
-   Vec4(const Vec4<T>& o) : x(o.x), y(o.y), z(o.z), w(o.w) {}
-   Vec4(T f) : x(f), y(f), z(f), w(f) {}
-
-   T* ptr() { return &x; }
-   T& operator [](const unsigned int dx) { return *(&x + dx); } 
-  
-   Vec4<T> operator + () const { return Vec4<T>(+x, +y, +z, +w); };
-   Vec4<T> operator - () const { return Vec4<T>(-x, -y, -z, -w); };
-   Vec4<T> operator + (const Vec4<T>& o) const { return Vec4<T>(x + o.x, y + o.y, z + o.z, w + o.w); } 
-   Vec4<T> operator - (const Vec4<T>& o) const { return Vec4<T>(x - o.x, y - o.y, z - o.z, w - o.w); } 
-   Vec4<T> operator * (const Vec4<T>& o) const { return Vec4<T>(x * o.x, y * o.y, z * o.z, w * o.w); } 
-   Vec4<T> operator / (const Vec4<T>& o) const { return Vec4<T>(x / o.x, y / o.y, z / o.z, w / o.w); } 
-   Vec4<T> operator + (float s) const { return Vec4<T>(x + s, y + s, z + s, w + s); } 
-   Vec4<T> operator - (float s) const { return Vec4<T>(x - s, y - s, z - s, w - s); } 
-   Vec4<T> operator * (float s) const { return Vec4<T>(x * s, y * s, z * s, w * s); } 
-   Vec4<T> operator / (float s) const { return Vec4<T>(x / s, y / s, z / s, w / s); } 
-
-   friend Vec4<T> operator + (float s, const Vec4<T>& o) { return Vec4<T>(s + o.x, s + o.y, s + o.z, s + o.w); } 
-   friend Vec4<T> operator - (float s, const Vec4<T>& o) { return Vec4<T>(s - o.x, s - o.y, s - o.z, s - o.w); } 
-   friend Vec4<T> operator * (float s, const Vec4<T>& o) { return Vec4<T>(s * o.x, s * o.y, s * o.z, s * o.w); } 
-   friend Vec4<T> operator / (float s, const Vec4<T>& o) { return Vec4<T>(s / o.x, s / o.y, s / o.z, s / o.w); } 
-
-   Vec4<T>& operator += (const Vec4<T>& o) { return *this = *this + o; }
-   Vec4<T>& operator -= (const Vec4<T>& o) { return *this = *this - o; }
-   Vec4<T>& operator *= (const Vec4<T>& o) { return *this = *this * o; }
-   Vec4<T>& operator /= (const Vec4<T>& o) { return *this = *this / o; }
-   Vec4<T>& operator += (float s) { return *this = *this + s; } 
-   Vec4<T>& operator -= (float s) { return *this = *this - s; } 
-   Vec4<T>& operator *= (float s) { return *this = *this * s; } 
-   Vec4<T>& operator /= (float s) { return *this = *this / s; } 
-
-   bool operator == (const Vec4<T>& o) const { return x == o.x && y == o.y && z == o.z && w == o.w; } 
-   bool operator != (const Vec4<T>& o) const { return x != o.x || y == o.y || z == o.z || w == o.w; } 
-
-   friend float length(const Vec4<T>& o) { return sqrtf(o.x * o.x + o.y * o.y + o.z * o.z + o.w * o.w); } 
-   friend float dot(const Vec4<T> &a, const Vec4<T> &b) { return a.x * b.x + a.y * b.y + a.z * b.z + a.w * a.w; }
-   friend float heighest(const Vec4<T> &v) { return fmaxf(fmaxf(v.x, v.y), fmaxf(v.z, v.w)); }
-   friend float lowest(const Vec4<T> &v) { return fminf(fminf(v.x, v.y), fminf(v.z, v.w)); }
-   friend Vec4<T> heighest(const Vec4<T> &a, const Vec4<T> &b) { return Vec4<T>(fmaxf(a.x, b.x), fmaxf(a.y, b.y), fmaxf(a.z, b.z), fmaxf(a.w, b.w)); }
-   friend Vec4<T> lowest(const Vec4<T> &a, const Vec4<T> &b) { return Vec4<T>(fminf(a.x, b.x), fminf(a.y, b.y), fminf(a.z, b.z), fminf(a.w, b.w)); }
-   friend Vec4<T> floor(const Vec4<T> &v) { return Vec4<T>(floorf(v.x), floorf(v.y), floorf(v.z), floorf(v.w)); }
-   friend Vec4<T> ceil(const Vec4<T> &v) { return Vec4<T>(ceilf(v.x), ceilf(v.y), ceilf(v.z), ceilf(v.w)); }
-   friend Vec4<T> abs(const Vec4<T> &v) { return Vec4<T>(fabsf(v.x), fabsf(v.y), fabsf(v.z), fabsf(v.w)); }
-   friend Vec4<T> fract(const Vec4<T> &v) { return v - floor(v); }
-   friend Vec4<T> normalized(const Vec4<T> &v) { return v / length(v); }
-
-   void print() { printf("x: %f, y: %f, z: %f, w: %f\n", x, y, z, w); } 
-
- public:
-   T x, y, z, w;
- };
-
- // ----------------------------------------------------------------------------------
-
- template<class T>
-   class Matrix4 {
- public:
-   Matrix4();
-
-   Matrix4<T>& rotateX(T rad);
-   Matrix4<T>& rotateY(T rad);
-   Matrix4<T>& rotateZ(T rad);
-   Matrix4<T>& rotate(T rad, T x, T y, T z);
-   Matrix4<T>& rotate(T rad, const Vec3<T>& v) { return rotate(rad, v.x, v.y, v.z); } 
-   Matrix4<T>& translate(T x, T y, T z);
-   Matrix4<T>& translate(const Vec3<T>& v) { return translate(v.x, v.y, v.z); } 
-   Matrix4<T>& scale(T x, T y, T z);
-   Matrix4<T>& scale(T s) { return scale(s, s, s); } 
-   Matrix4<T>& perspective(T fovDegrees, T aspect, T n, T f);
-   Matrix4<T>& ortho(T l, T r, T b, T t, T n, T f);
-   Matrix4<T>& frustum(T l, T r, T b, T t, T n, T f);
-   Matrix4<T>& identity();
-   Matrix4<T>& lookAt(Vec3<T> pos, Vec3<T> target, Vec3<T> up);
-   T* ptr() { return &m[0]; } 
-
-   static Matrix4<T> rotation(T rad, T x, T y, T z);
-
-   Matrix4<T>& operator *=(const Matrix4<T>& o);
-   Matrix4<T> operator * (const Matrix4<T>& o) const;
-   T& operator [] (const unsigned int dx) { return m[dx]; } 
-
-   void print();
- public:
-   T m[16];
- };
-
+#if defined(ROXLU_IMPLEMENTATION)
  template<class T>
    Matrix4<T>::Matrix4() {
    identity();
@@ -1639,18 +2365,16 @@ Matrix4<T>& Matrix4<T>::lookAt(Vec3<T> pos, Vec3<T> target, Vec3<T> up) {
 
   return *this ;
 }
+#endif // ROXLU_IMPLEMENTATION
 
- typedef Matrix4<float> mat4;
- typedef Vec4<float> vec4;
- typedef Vec3<float> vec3;
- typedef Vec2<float> vec2;
-
-
- static float rx_random(float max) {
+#if defined(ROXLU_IMPLEMENTATION)
+static float rx_random(float max) {
    return max * rand() / (RAND_MAX + 1.0f);
- }
+}
+#endif
 
- static float rx_random(float x, float y) {
+#if defined(ROXLU_IMPLEMENTATION)
+static float rx_random(float x, float y) {
    float high = 0;
    float low = 0;
    float result = 0;
@@ -1659,12 +2383,13 @@ Matrix4<T>& Matrix4<T>::lookAt(Vec3<T> pos, Vec3<T> target, Vec3<T> up) {
    low = std::min<float>(x,y);
    result = low + ((high-low) * rand()/(RAND_MAX + 1.0));
    return result;
- }
+}
+#endif
 
 // COLOR 
 // ----------------------------------------------------------------------------
 // all in range 0 - 1 
-
+#if defined(ROXLU_IMPLEMENTATION)
 static void rx_rgb_to_hsv(float r, float g, float b, float& h, float& s, float& v) {
   float K = 0.f;
 
@@ -1696,7 +2421,6 @@ static void rx_rgb_to_hsv(float* rgb, float* hsv) {
  rx_rgb_to_hsv(rgb[0], rgb[1], rgb[2], hsv[0], hsv[1], hsv[2]);
 }
 
-// all in range 0 - 1, thanks to lolengine! (sam)
 static void rx_hsv_to_rgb(float h, float s, float v, float& r, float& g, float& b) {
   float tmp_r = CLAMP((-1.0f + fabs(6.0f * h - 3.0f)), 0,1);
   float tmp_g = CLAMP(( 2.0f - fabs(6.0f * h - 2.0f)), 0,1);      
@@ -1719,62 +2443,31 @@ static void rx_hsv_to_rgb(float* hsv, float* rgb) {
   rx_hsv_to_rgb(hsv[0], hsv[1], hsv[2], rgb[0], rgb[1], rgb[2]);
 }
 
+#endif // ROXLU_IMPLEMENTATION
 
- // SPLINE
- // ----------------------------------------------------------------------------
-
-/**
- * Catmull Rom interpolation. 
- * --------------------------
- * Catmull Rom interpolation works with 4 points, there the 
- * local "t" value is used to interpolate between points B and C. The 
- * points A and D are used as "direction" (kind of). Therefore, for the first
- * and last point we have to choose the indices correctly. (see the index
- * checking for a,b,c,d below.). Basically for the first point, we use 0,0
- * for points A and Bs. Make sure to add at least 4 points before interpolating. 
- * 
- * This can be used almost the same as std::vector.
- *
- * Everything is normalized between [0,1]
- */
-
-// T: vector type
+#if defined(ROXLU_IMPLEMENTATION)
 template<class T>
-  struct Spline {
-    
-    size_t size();                                 /* the number of points */
-    void clear();                                  /* remove all points */
-    T at(float t);                                 /* interpolate using catmull rom */
-    void push_back(const T point);                 /* add a point to the class */
-    template<class I> void assign(I begin, I end) {  points.assign(begin, end); } /* assign multiple values; just like std::vector<T>::assign() */
-
-    T& operator[](const unsigned int);
-    std::vector<T> points;
-};
-
-
-template<class T>
-  T& Spline<T>::operator[](const unsigned int dx) {
+T& Spline<T>::operator[](const unsigned int dx) {
   return points[dx];
 }
 
 template<class T>
-  inline size_t Spline<T>::size() {
+inline size_t Spline<T>::size() {
   return points.size();
 }
 
 template<class T>
-  inline void Spline<T>::clear() {
+inline void Spline<T>::clear() {
   return points.clear();
 }
 
 template<class T>
-  inline void Spline<T>::push_back(const T p) {
+inline void Spline<T>::push_back(const T p) {
   points.push_back(p);
 }
 
 template<class T>
-  inline T Spline<T>::at(float t) {
+inline T Spline<T>::at(float t) {
   if(points.size() < 4) {
     return T();
   }
@@ -1816,56 +2509,11 @@ template<class T>
 
   return result;
 }
+#endif // ROXLU_IMPLEMENTATION
 
- // PERLIN
- // ----------------------------------------------------------------------------
- /*
-
-  # Perlin
-
-  Perlin noise, thanks to Ken P. 
-  This class is based on: http://www.flipcode.com/archives/Perlin_Noise_Class.shtml 
-  with some super tiny changes. Thanks guys!
-
-  octaves: use a value between 1 - 16, 1 = smooth, 16 = noisy, values between 4 - 8 give conventional noise results
-  freq:    use a value between 1 - 8, which will give reasanoble results (you can use any value you want)
-  ampl:    a value of 1, will result in values between -1 and 1
-  seed:    random seed, eg. 94
-
- */
-
-#define PERLIN_SIZE 1024
-
-class Perlin {
- public:
-  Perlin(int octaves, float freq, float amp, int seed);
-  float get(float x);
-  float get(float x, float y);
-
- private:
-  void initPerlin(int n, float p);
-  void init();
-  float noise1(float arg);
-  float noise2(float vec[2]);
-  float noise3(float vec[3]);
-  void normalize2(float v[2]);
-  void normalize3(float v[3]);
-  float noise2D(float vec[2]);
-
- private:
-  int octaves;
-  float freq;
-  float amp;
-  int seed;
-
-  int p[PERLIN_SIZE + PERLIN_SIZE + 2];
-  float g3[PERLIN_SIZE + PERLIN_SIZE + 2][3];
-  float g2[PERLIN_SIZE + PERLIN_SIZE + 2][2];
-  float g1[PERLIN_SIZE + PERLIN_SIZE + 2];
-  bool start;
-  
-};
-
+// PERLIN
+// ----------------------------------------------------------------------------
+#if defined(ROXLU_IMPLEMENTATION)
 inline float Perlin::get(float x) {
   float vec[2] = {x, 0.0f};
   return noise2D(vec);
@@ -2100,11 +2748,11 @@ inline float Perlin::noise2D(float vec[2]) {
 
   return result;
 }
-
+#endif // ROXLU_IMPLEMENTATION
 #endif // ROXLU_USE_MATH
 
 #if defined(ROXLU_USE_OPENGL) && defined(ROXLU_USE_MATH)
-
+#if defined(ROXLU_IMPLEMENTATION)
 struct VertexP {
   VertexP(){};
   VertexP(vec3 p):pos(p){}
@@ -2151,38 +2799,9 @@ struct VertexPN {
   vec3 pos;
   vec3 norm;
 };
+#endif // ROXLU_IMPLEMENTATION
 
-// OBJ: super basic OBJ file loader
-class OBJ {
- public:
-  struct TRI { int v, t, n; };
-  struct FACE { TRI a, b, c; };
-  struct XYZ {  float x, y, z; };
-  struct TEXCOORD { float s, t; };
-
-  bool load(std::string filepath);
-
-  bool hasNormals();
-  bool hasTexCoords();
-
-  template<class T>
-    bool copy(T& result);
-
-  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexP>& verts);
-  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPTN>& verts);
-  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPT>& verts);
-  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPN>& verts);
-
- public:
-  std::vector<vec3> vertices;
-  std::vector<vec3> normals;
-  std::vector<vec2> tex_coords;
-  std::vector<OBJ::FACE> faces;
-  std::vector<int> indices;
-  bool has_texcoords;
-  bool has_normals;
-};
-
+#if defined(ROXLU_IMPLEMENTATION)
 template<class T>
 inline bool OBJ::copy(T& result) {
   for(std::vector<FACE>::iterator it = faces.begin(); it != faces.end(); ++it) {
@@ -2301,10 +2920,361 @@ inline bool OBJ::load(std::string filepath) {
     
   return true;
 } // OBJ::load
-
-
+#endif // ROXLU_IMPLEMENTATION
 #endif // ROXLU_USE_OPENGL && ROXLU_USE_MATH
 
 
- // ----------------------------------------------------------------------------
-#endif
+#if defined(ROXLU_USE_FONT) && defined(ROXLU_IMPLEMENTATION)
+
+static const char* BITMAPFONT_VS = ""
+  "#version 150\n"
+  "uniform mat4 u_pm;"
+  "in vec4 a_pos;"
+  "in vec2 a_tex;"
+  "in vec4 a_fg_color; "
+  "out vec2 v_tex;"
+  "out vec4 v_fg_color;"
+  ""
+  "void main() {"
+  "   gl_Position = u_pm * a_pos; "
+  "   v_tex = a_tex;"
+  "   v_fg_color = a_fg_color;"
+  "}"
+  "";
+
+static const char* BITMAPFONT_FS = ""
+  "#version 150\n"
+  "uniform sampler2DRect u_font_tex;"
+  "in vec2 v_tex;"
+  "in vec4 v_fg_color;"
+  "out vec4 fragcolor;"
+  ""
+  "void main() {"
+  "  float col = texture(u_font_tex, v_tex).r;"
+  "  fragcolor = col * v_fg_color ;"
+  "}"
+  "";
+
+// -----------------------------------------------------------------------------
+
+BitmapFont::BitmapFont() 
+  :needs_update(false)
+  ,win_w(0)
+  ,win_h(0)
+  ,prog(0)
+  ,vert(0)
+  ,frag(0)
+  ,vbo(0)
+  ,vao(0)
+  ,tex(0)
+  ,bytes_allocated(0)
+{
+  color[0] = color[1] = color[2] = color[3] = 1.0f;
+}
+
+bool BitmapFont::setup(std::string filepath, int winW, int winH) {
+
+  if(!winW || !winH) {
+    return false;
+  }
+
+  win_w = winW;
+  win_h = winH;
+
+  if(!loadFile(filepath)) {
+    return false;
+  }
+  
+  if(!setupGraphics()) {
+    return false;
+  }
+
+  return true;
+}
+
+bool BitmapFont::loadFile(std::string filepath) {
+
+  std::ifstream ifs(filepath.c_str(), std::ios::in);
+  if(!ifs.is_open()) {
+    return false;
+  }
+  
+  std::string xml_str;
+  xml_str.assign(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
+
+  if(!xml_str.size()) {
+    return false;
+  }
+
+  xml_document<> xdoc;
+
+  try {
+    xdoc.parse<0>((char*)xml_str.c_str());
+    
+    // common data
+    xml_node<>* xfont   = xdoc.first_node("font");                              BMF_XML_CHECK(xfont);
+    xml_node<>* xcommon = xfont->first_node("common");                          BMF_XML_CHECK(xcommon);
+
+    xml_attribute<>* xline_height = xcommon->first_attribute("lineHeight");     BMF_XML_CHECK(xline_height);
+    xml_attribute<>* xscale_w     = xcommon->first_attribute("scaleW");         BMF_XML_CHECK(xscale_w);
+    xml_attribute<>* xscale_h     = xcommon->first_attribute("scaleH");         BMF_XML_CHECK(xscale_h);
+    xml_attribute<>* xpages       = xcommon->first_attribute("pages");          BMF_XML_CHECK(xpages);
+    xml_attribute<>* xbase        = xcommon->first_attribute("base");           BMF_XML_CHECK(xbase);
+
+    line_height = rx_to_int(xline_height->value());
+    scale_w     = rx_to_int(xscale_w->value());
+    scale_h     = rx_to_int(xscale_h->value());
+    pages       = rx_to_int(xpages->value());
+    base        = rx_to_int(xbase->value());
+
+    // image file
+    xml_node<>* xpage = xfont->first_node("pages")->first_node();               BMF_XML_CHECK(xpage);
+    xml_attribute<>* xfile = xpage->first_attribute("file");                    BMF_XML_CHECK(xfile);
+    std::string image_file = xfile->value();
+    image_path = rx_strip_filename(filepath) +image_file;
+
+    // character information.
+    xml_node<>* xchars = xfont->first_node("chars");                           BMF_XML_CHECK(xchars);
+    xml_attribute<>* xchar_count = xchars->first_attribute("count");           BMF_XML_CHECK(xchar_count);
+    xml_node<>* xchar = xchars->first_node();                                  BMF_XML_CHECK(xchar);
+
+    while(xchar) {
+      xml_attribute<>* char_id       = xchar->first_attribute("id");           BMF_XML_CHECK(char_id);
+      xml_attribute<>* char_x        = xchar->first_attribute("x");            BMF_XML_CHECK(char_x);
+      xml_attribute<>* char_y        = xchar->first_attribute("y");            BMF_XML_CHECK(char_y);
+      xml_attribute<>* char_width    = xchar->first_attribute("width");        BMF_XML_CHECK(char_width);
+      xml_attribute<>* char_height   = xchar->first_attribute("height");       BMF_XML_CHECK(char_height);
+      xml_attribute<>* char_xoffset  = xchar->first_attribute("xoffset");      BMF_XML_CHECK(char_xoffset);
+      xml_attribute<>* char_yoffset  = xchar->first_attribute("yoffset");      BMF_XML_CHECK(char_yoffset);
+      xml_attribute<>* char_xadvance = xchar->first_attribute("xadvance");     BMF_XML_CHECK(char_xadvance);
+
+      Character c;
+      c.id       = rx_to_int(char_id->value());
+      c.x        = rx_to_int(char_x->value());
+      c.y        = rx_to_int(char_y->value());
+      c.width    = rx_to_int(char_width->value());
+      c.height   = rx_to_int(char_height->value());
+      c.xoffset  = rx_to_int(char_xoffset->value());
+      c.yoffset  = rx_to_int(char_yoffset->value());
+      c.xadvance = rx_to_int(char_xadvance->value());
+
+      chars[c.id] = c;
+      xchar = xchar->next_sibling();
+    }
+  }
+  catch(...) {
+    return false;
+  }
+
+  return true;
+}
+
+bool BitmapFont::setupGraphics() {
+
+  if(!win_w || !win_h) {
+    return false;
+  }
+
+  if(!image_path.size()) {
+    return false;
+  }
+
+  pm.ortho(0, win_w, win_h, 0,  0.0f, 100.0f);   
+
+  const char* atts[] = { "a_pos", "a_tex", "a_fg_color" } ;
+  vert = rx_create_shader(GL_VERTEX_SHADER, BITMAPFONT_VS);
+  frag = rx_create_shader(GL_FRAGMENT_SHADER, BITMAPFONT_FS);
+  prog = rx_create_program_with_attribs(vert, frag, 3, atts);
+
+  glUseProgram(prog);
+  glUniformMatrix4fv(glGetUniformLocation(prog, "u_pm"), 1, GL_FALSE, pm.ptr());
+  glUniform1i(glGetUniformLocation(prog, "u_font_tex"), 0);
+  
+  glGenVertexArrays(1, &vao);
+  glBindVertexArray(vao);
+  glEnableVertexAttribArray(0);  // pos
+  glEnableVertexAttribArray(1);  // tex
+  glEnableVertexAttribArray(2);  // fg_color
+
+  glGenBuffers(1, &vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(CharacterVertex), (GLvoid*)0); // pos
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(CharacterVertex), (GLvoid*)8); // tex
+  glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(CharacterVertex), (GLvoid*)16); // color
+
+  unsigned char* pix = NULL;
+  int img_w = 0;
+  int img_h = 0;
+  int nchannels = 0;
+  
+  if(!rx_load_png(image_path, &pix, img_w, img_h, nchannels)) {
+    return false;
+  }
+  
+  glGenTextures(1, &tex);
+  glBindTexture(GL_TEXTURE_RECTANGLE, tex);
+  glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_R8, img_w, img_h, 0, GL_RED, GL_UNSIGNED_BYTE, pix);
+  glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  delete[] pix;
+  pix = NULL;
+  return true;
+}
+
+void BitmapFont::resize(int winW, int winH) {
+
+  if(!winW || !winH) {
+    return;
+  }
+
+  win_w = winW;
+  win_h = winH;
+  pm.ortho(0, win_w, win_h, 0,  0.0f, 100.0f);   
+
+  glUseProgram(prog);
+  glUniformMatrix4fv(glGetUniformLocation(prog, "u_pm"), 1, GL_FALSE, pm.ptr());
+}
+
+void BitmapFont::setColor(float r, float g, float b, float a) {
+  color[0] = r;
+  color[1] = g;
+  color[2] = b;
+  color[3] = a;
+}
+
+void BitmapFont::reset() {
+  vertices.clear();
+}
+
+void BitmapFont::write(float x, float y, std::string str) {
+
+  float xoffset = x;
+  float yoffset = y;
+
+  for(size_t i = 0; i < str.size(); ++i) {
+
+    std::map<int, Character>::iterator it = chars.find(str[i]);
+    if(it == chars.end()) {
+      printf("character: %c not found.\n", str[i]);
+      continue;
+    }
+
+    Character& c = it->second;
+
+    float x0 = xoffset + c.xoffset;
+    float y0 = yoffset + c.yoffset;
+    float x1 = x0 + c.width;
+    float y1 = c.height + yoffset + c.yoffset;
+    float u0 = c.x;
+    float u1 = c.x + c.width;
+    float v0 = c.y; 
+    float v1 = v0 + c.height;
+
+    CharacterVertex va(x0, y1, u0, v1, color); // bottom left
+    CharacterVertex vb(x1, y1, u1, v1, color); // bottom right
+    CharacterVertex vc(x1, y0, u1, v0, color); // top right
+    CharacterVertex vd(x0, y0, u0, v0, color); // top left
+    
+    vertices.push_back(va);
+    vertices.push_back(vb);
+    vertices.push_back(vc);
+    vertices.push_back(va);
+    vertices.push_back(vc);
+    vertices.push_back(vd);
+
+    xoffset += c.xadvance;
+  }
+
+  needs_update = true;
+}
+
+void BitmapFont::draw() {
+
+  if(!vertices.size()) {
+    return;
+  }
+
+  updateVertices();
+
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_RECTANGLE, tex);
+
+  glUseProgram(prog);
+  glBindVertexArray(vao);
+  glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+  glDrawArrays(GL_POINTS, 0, vertices.size());
+}
+
+void BitmapFont::updateVertices() {
+
+  if(!needs_update) {
+    return;
+  }
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+  size_t needed = sizeof(CharacterVertex) * vertices.size();
+  if(!needed) {
+    return;
+  }
+
+  if(needed > bytes_allocated) {
+    glBufferData(GL_ARRAY_BUFFER, needed, &vertices[0].x, GL_DYNAMIC_DRAW);
+    bytes_allocated = needed;
+  }
+  else {
+    glBufferSubData(GL_ARRAY_BUFFER, 0, needed, &vertices[0].x);
+  }
+
+  needs_update = false;
+}
+
+void BitmapFont::print() {
+  printf("font.line_height: %d\n", line_height);
+  printf("font.scale_w: %d\n", scale_w);
+  printf("font.scale_h: %d\n", scale_h);
+  printf("font.pages: %d\n", pages);
+  printf("font.base: %d\n", base);
+}
+
+// -----------------------------------------------------------------------------
+
+Character::Character() 
+  :id(0)
+  ,x(0)
+  ,y(0)
+  ,width(0)
+  ,height(0)
+  ,xoffset(0)
+  ,yoffset(0)
+  ,xadvance(0)
+{
+}
+
+// -----------------------------------------------------------------------------
+
+CharacterVertex::CharacterVertex()
+   :x(0.0f)
+   ,y(0.0f)
+   ,s(0.0f)
+   ,t(0.0f)
+   {
+     fg_color[0] = fg_color[1] = fg_color[2] = fg_color[3] = 1.0f;
+   }
+
+CharacterVertex::CharacterVertex(float x, float y, int s, int t, float* rgba) 
+  :x(x)
+  ,y(y)
+  ,s(s)
+  ,t(t)
+{
+  fg_color[0] = rgba[0];
+  fg_color[1] = rgba[1];
+  fg_color[2] = rgba[2]; 
+  fg_color[3] = rgba[3];
+}
+#endif // ROXLU_USE_FONT && ROXLU_IMPLEMENTATION
+
