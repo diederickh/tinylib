@@ -2104,7 +2104,7 @@ extern uint64_t rx_hrtime() {
   return mach_absolute_time() * info.numer / info.denom;
 
 #elif defined(__linux)
-  extern clock_t fast_clock_id = -1;
+  static clock_t fast_clock_id = -1;
   struct timespec t;
   clock_t clock_id;
 
