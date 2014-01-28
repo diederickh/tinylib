@@ -1721,9 +1721,14 @@ class BitmapFont {
   void resize(int winW, int winH);
   void print(); 
 
- private:
+  bool getChar(int code, Character& result);   /* get a specific character, returns false when the font doesn't have the char */
+  float getWidth(const std::string& str);      /* get the width for the given string, as it would be drawn on screen */
+
+ protected:
   bool loadFile(std::string filepath);
+  bool createTextureFromPNG(std::string filepath);
   bool setupGraphics();
+  void setupTexture(int w, int h, unsigned char* pix);
   void updateVertices();
   
  public:
@@ -1746,11 +1751,13 @@ class BitmapFont {
 
   /* opengl */
   mat4 pm;  
-  GLuint prog;
-  GLuint vert;
-  GLuint frag;
-  GLuint vbo;
+  static GLuint prog;
+  static GLuint vert;
+  static GLuint frag;
+  static bool is_initialized;   /* indicates if the prog, vert, frag and vao are initialized */
   GLuint vao;
+  GLuint vbo;
+
   GLuint tex;
   size_t bytes_allocated;
   std::vector<CharacterVertex> vertices;
@@ -2882,15 +2889,17 @@ static const char* BITMAPFONT_FS = ""
   "}"
   "";
 
+GLuint BitmapFont::prog = 0;
+GLuint BitmapFont::vert = 0;
+GLuint BitmapFont::frag = 0;
+bool BitmapFont::is_initialized = false;
+
 // -----------------------------------------------------------------------------
 
 BitmapFont::BitmapFont() 
-:needs_update(false)
-,win_w(0)
+  :needs_update(false)
+  ,win_w(0)
   ,win_h(0)
-  ,prog(0)
-  ,vert(0)
-  ,frag(0)
   ,vbo(0)
   ,vao(0)
   ,tex(0)
@@ -2911,11 +2920,33 @@ bool BitmapFont::setup(std::string filepath, int winW, int winH) {
   if(!loadFile(filepath)) {
     return false;
   }
+
+  if(!createTextureFromPNG(image_path)) {
+    return false;
+  }
   
   if(!setupGraphics()) {
     return false;
   }
 
+  return true;
+}
+
+bool BitmapFont::createTextureFromPNG(std::string filepath) {
+
+  unsigned char* pix = NULL;
+  int img_w = 0;
+  int img_h = 0;
+  int nchannels = 0;
+  
+  if(!rx_load_png(image_path, &pix, img_w, img_h, nchannels)) {
+    return false;
+  }
+  
+  setupTexture(img_w, img_h, pix);
+ 
+  delete[] pix;
+  pix = NULL;
   return true;
 }
 
@@ -3002,21 +3033,21 @@ bool BitmapFont::setupGraphics() {
     return false;
   }
 
-  if(!image_path.size()) {
-    return false;
-  }
-
   pm.ortho(0, win_w, win_h, 0,  0.0f, 100.0f);   
 
-  const char* atts[] = { "a_pos", "a_tex", "a_fg_color" } ;
-  vert = rx_create_shader(GL_VERTEX_SHADER, BITMAPFONT_VS);
-  frag = rx_create_shader(GL_FRAGMENT_SHADER, BITMAPFONT_FS);
-  prog = rx_create_program_with_attribs(vert, frag, 3, atts);
+  if(!BitmapFont::is_initialized) {
+    const char* atts[] = { "a_pos", "a_tex", "a_fg_color" } ;
+    vert = rx_create_shader(GL_VERTEX_SHADER, BITMAPFONT_VS);
+    frag = rx_create_shader(GL_FRAGMENT_SHADER, BITMAPFONT_FS);
+    prog = rx_create_program_with_attribs(vert, frag, 3, atts);
 
-  glUseProgram(prog);
-  glUniformMatrix4fv(glGetUniformLocation(prog, "u_pm"), 1, GL_FALSE, pm.ptr());
-  glUniform1i(glGetUniformLocation(prog, "u_font_tex"), 0);
+    glUseProgram(prog);
+    glUniformMatrix4fv(glGetUniformLocation(prog, "u_pm"), 1, GL_FALSE, pm.ptr());
+    glUniform1i(glGetUniformLocation(prog, "u_font_tex"), 0);
   
+    BitmapFont::is_initialized = true;
+  }
+
   glGenVertexArrays(1, &vao);
   glBindVertexArray(vao);
   glEnableVertexAttribArray(0);  // pos
@@ -3029,26 +3060,17 @@ bool BitmapFont::setupGraphics() {
   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(CharacterVertex), (GLvoid*)8); // tex
   glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(CharacterVertex), (GLvoid*)16); // color
 
-  unsigned char* pix = NULL;
-  int img_w = 0;
-  int img_h = 0;
-  int nchannels = 0;
-  
-  if(!rx_load_png(image_path, &pix, img_w, img_h, nchannels)) {
-    return false;
-  }
-  
+  return true;
+}
+
+void BitmapFont::setupTexture(int w, int h, unsigned char* pix) {
   glGenTextures(1, &tex);
   glBindTexture(GL_TEXTURE_RECTANGLE, tex);
-  glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_R8, img_w, img_h, 0, GL_RED, GL_UNSIGNED_BYTE, pix);
+  glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_R8, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, pix);
   glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-  delete[] pix;
-  pix = NULL;
-  return true;
 }
 
 void BitmapFont::resize(int winW, int winH) {
@@ -3132,7 +3154,6 @@ void BitmapFont::draw() {
   glUseProgram(prog);
   glBindVertexArray(vao);
   glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-  glDrawArrays(GL_POINTS, 0, vertices.size());
 }
 
 void BitmapFont::updateVertices() {
@@ -3157,6 +3178,33 @@ void BitmapFont::updateVertices() {
   }
 
   needs_update = false;
+}
+
+bool BitmapFont::getChar(int code, Character& result) {
+
+  std::map<int, Character>::iterator it = chars.find(code);
+
+  if(it == chars.end()) {
+    return false;
+  }
+  
+  result = it->second;
+
+  return true;
+}
+
+float BitmapFont::getWidth(const std::string& str) {
+
+  float w = 0.0f;
+  Character ch;
+
+  for(size_t i = 0;i < str.size(); ++i) {
+    if(getChar(str[i], ch)) {
+      w += ch.xadvance;
+    }
+  }
+
+  return w;
 }
 
 void BitmapFont::print() {
