@@ -267,7 +267,6 @@
   doing `Options > Save bitmap font as...`. Copy the .fnt and [name]_0.png 
   files to the same directory.
 
-
   <example>
   BitmapFont font;
   if(!font.setup("arial.fnt", 1024, 768)) {
@@ -1376,6 +1375,7 @@ inline float Perlin::noise2D(float vec[2]) {
 #  endif // ROXLU_USE_MATH_H
 #endif // ROXLU_USE_MATH
 
+
 // ------------------------------------------------------------------------------------
 //                              R O X L U _ U S E _ P N G
 // ------------------------------------------------------------------------------------
@@ -1673,10 +1673,18 @@ extern GLuint rx_create_texture(std::string filepath, int internalFormat = -1, i
 //                              R O X L U _ U S E _ F O N T
 // ------------------------------------------------------------------------------------
 
+// {{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{
+// {{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{
+// {{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{
+
+
 #if defined(ROXLU_USE_FONT)
 #  ifndef ROXLU_USE_FONT_H
 #  define ROXLU_USE_FONT_H
 #define BMF_XML_CHECK(node) { if(!node) { return false; }  }
+
+
+#if 0
 
 #include <rapidxml.hpp>
 using namespace rapidxml;
@@ -1762,6 +1770,12 @@ class BitmapFont {
   size_t bytes_allocated;
   std::vector<CharacterVertex> vertices;
 };
+#endif
+// }}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
+// }}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
+// }}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
+
+
 #  endif // ROXLU_USE_FONT_H
 #endif // defined(ROXLU_USE_FONT)
 
@@ -2859,7 +2873,7 @@ extern GLuint rx_create_texture(std::string filepath,
 // ====================================================================================
 
 #if defined(ROXLU_USE_FONT) && defined(ROXLU_IMPLEMENTATION)
-
+/*
 static const char* BITMAPFONT_VS = ""
   "#version 150\n"
   "uniform mat4 u_pm;"
@@ -3251,7 +3265,7 @@ CharacterVertex::CharacterVertex(float x, float y, int s, int t, float* rgba)
   fg_color[2] = rgba[2]; 
   fg_color[3] = rgba[3];
 }
-
+*/
 #endif //  defined(ROXLU_USE_FONT) && defined(ROXLU_IMPLEMENATION)
 
 #undef ROXLU_IMPLEMENTATION
