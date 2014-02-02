@@ -311,7 +311,7 @@
 #include <map> 
 
 #if defined(_WIN32)
-#  include <direct.h>
+#  include <direct.h>                              /* _mkdir */
 #  include <Shlwapi.h>
 #  include <stdint.h>
 #  include <time.h>
@@ -1794,7 +1794,7 @@ extern std::string rx_get_exe_path() {
   char buffer[MAX_PATH];
 
   // Try to get the executable path with a buffer of MAX_PATH characters.
-  DWORD result = ::GetModuleFileNameA(nullptr, buffer, extern_cast<DWORD>(MAX_PATH));
+  DWORD result = ::GetModuleFileNameA(nullptr, buffer, static_cast<DWORD>(MAX_PATH));
   if(result == 0) {
     return "";
   }
@@ -2040,7 +2040,7 @@ extern bool rx_create_path(std::string path) {
 #else
     dir_path += "/";
 #endif
-
+#if !defined(_WIN32)
     dir_path += dirs[i];
     if(stat(dir_path.c_str(), &s) != 0) {
       if(!rx_create_dir(dir_path.c_str())) {
@@ -2048,12 +2048,16 @@ extern bool rx_create_path(std::string path) {
         return false;
       }
     }
+#else
   }
+   printf("WARNING: We have not yet implemented rx_create_path() on windows.\n");
+#endif
   return true;
 } // rx_create_path()
 
 extern std::vector<std::string> rx_get_files(std::string path, std::string ext) { 
   std::vector<std::string> result;
+#if !defined(_WIN32)
   DIR* dir;
   struct dirent* ent;
   if((dir = opendir(path.c_str())) != NULL) {
@@ -2073,6 +2077,9 @@ extern std::vector<std::string> rx_get_files(std::string path, std::string ext) 
     }
     closedir(dir);
   }
+#else
+  printf("WARNING: We have not yet implemented rx_get_files on windows.\n");
+#endif
   return result;
 } // rx_get_files()
 
