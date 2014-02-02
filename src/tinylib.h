@@ -2006,7 +2006,6 @@ extern bool rx_create_path(std::string path) {
   }
   path = path.substr(drive.size() + 2);
   drive = drive + ":";
-
 #endif
 
   std::vector<std::string> dirs;
@@ -2031,15 +2030,19 @@ extern bool rx_create_path(std::string path) {
     
   struct stat s;
   std::string dir_path;
+
 #ifdef _WIN32
   dir_path = drive;
 #endif
+
   for(unsigned int i = 0; i < dirs.size(); i++) {
+
 #ifdef _WIN32
     dir_path += "\\";
 #else
     dir_path += "/";
 #endif
+
 #if !defined(_WIN32)
     dir_path += dirs[i];
     if(stat(dir_path.c_str(), &s) != 0) {
@@ -2048,10 +2051,13 @@ extern bool rx_create_path(std::string path) {
         return false;
       }
     }
-#else
+#endif
   }
+
+#if defined(_WIN32)
    printf("WARNING: We have not yet implemented rx_create_path() on windows.\n");
 #endif
+
   return true;
 } // rx_create_path()
 
