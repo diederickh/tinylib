@@ -2159,8 +2159,12 @@ extern uint64_t rx_hrtime() {
   return t.tv_sec * (uint64_t)1e9 +t.tv_nsec;
 
 #elif defined(_WIN32)
-  printf("need to implement rx_hrtime() for linux\n");
-  return 0;
+  LARGE_INTEGER timer_freq;
+  LARGE_INTEGER timer_time;
+  QueryPerformanceCounter(&timer_time);
+  QueryPerformanceFrequency(&timer_freq);
+  static double freq = (double)timer_freq.QuadPart/(double)1000000000;
+  return (uint64_t)((double)timer_time.QuadPart / freq);
 #endif
 };
 
