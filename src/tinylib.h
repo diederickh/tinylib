@@ -161,8 +161,10 @@
   mat4& mat4.ortho(l, r, b, t, n , f)
   mat4& mat4.frustum(l, r, b, t, n, f)
   mat4& mat4.perspective(fov, aspect, near, far)
+  mat4& mat4.lookat(eye, pos, up)
   void  mat4.print()
   float* mat4.ptr()                                                        - get a pointer to the data
+  
   
   <example>
   // create an ortho matrix with 0,0 at the top left
@@ -223,8 +225,6 @@
 //                              T  I  N  Y  L  I  B 
 // ------------------------------------------------------------------------------------
 
-#ifndef ROXLU_TINYLIB_H
-#define ROXLU_TINYLIB_H
 #include <assert.h>
 #include <iostream>
 #include <cmath>
@@ -278,6 +278,8 @@
 #  include <png.h>
 #endif
 
+#ifndef ROXLU_TINYLIB_H
+#define ROXLU_TINYLIB_H
 #ifndef PI
 #  define PI 3.14159265358979323846
 #endif
@@ -661,7 +663,7 @@ class Matrix4 {
   Matrix4<T>& ortho(T l, T r, T b, T t, T n, T f);
   Matrix4<T>& frustum(T l, T r, T b, T t, T n, T f);
   Matrix4<T>& identity();
-  Matrix4<T>& lookAt(Vec3<T> pos, Vec3<T> target, Vec3<T> up);
+  Matrix4<T>& lookat(Vec3<T> pos, Vec3<T> target, Vec3<T> up);
     
   T* ptr() { return &m[0]; }
     
@@ -925,7 +927,7 @@ Matrix4<T> Matrix4<T>::operator * (const Matrix4<T>& o) const {
 }
 
 template<class T>
-Matrix4<T>& Matrix4<T>::lookAt(Vec3<T> pos, Vec3<T> target, Vec3<T> up) {
+Matrix4<T>& Matrix4<T>::lookat(Vec3<T> pos, Vec3<T> target, Vec3<T> up) {
     
   Vec3<T> f = normalized(target - pos);
   Vec3<T> u = normalized(up);
