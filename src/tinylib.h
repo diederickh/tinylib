@@ -36,7 +36,7 @@
   #define ROXLU_USE_OPENGL           - to use the opengl code
   #define ROXLU_USE_PNG              - to use the png loader and saver (needs libpng)
   #define ROXLU_USE_MATH             - to use the vec2, vec3, vec4, mat4 classes
-  #define ROXLU_USE_FONT             - to use BitmapFont
+  #define ROXLU_USE_CURL             - enable some curl helpers
 
 
   OPENGL - define `ROXLU_USE_OPENGL` before including
@@ -84,6 +84,8 @@
   ===================================================================================
   rx_to_float("0.15");                                                     - convert a string to float 
   rx_to_int("10");                                                         - convert a string to integer
+  rx_int_to_string(15);                                                    - convert an integer to string
+  rx_float_to_string(5.5);                                                 - convert a float to string
                                                                            
   rx_get_exe_path();                                                       - returns the path to the exe 
   rx_read_file("filepath.txt");                                            - returns the contents of the filepath.
@@ -210,7 +212,13 @@
   Perlin(octaves, freq, amplitude, seed)                             - constructor, see values in the description above
   Perlin.get(x)                                                      - get the value for this `x` range 
   Perlin.get(x, y)                                                   - 2d perlin
+
+
+  CURL - define `ROXLU_USE_CURL`
+  ===================================================================================
   
+  rx_fetch_url(std::string url, std::string& result)                 - downloads an url into the given result.
+  rx_download_file(std::string url, std::string filepath)            - downloads a file to the given filepath.
 
 */
 
@@ -219,6 +227,7 @@
 #  define ROXLU_USE_PNG
 #  define ROXLU_USE_MATH
 #  define ROXLU_USE_FONT
+#  define ROXLU_USE_CURL
 #endif
 
 // ------------------------------------------------------------------------------------
@@ -345,6 +354,8 @@ extern std::string rx_string_replace(std::string, char from, char to);
 extern std::string rx_string_replace(std::string, std::string from, std::string to);
 extern int rx_to_int(const std::string& v);
 extern float rx_to_float(const std::string& v);
+extern std::string rx_int_to_string(const int& v);
+extern std::string rx_float_to_string(const float& v);
 extern std::vector<std::string> rx_split(std::string str, char delim);
 
 /* time utils */
@@ -1305,6 +1316,26 @@ inline float Perlin::noise2D(float vec[2]) {
 
 
 // ------------------------------------------------------------------------------------
+//                              R O X L U _ U S E _ C U R L
+// ------------------------------------------------------------------------------------
+
+#if defined(ROXLU_USE_CURL)
+#  ifndef ROXLU_USE_CURL_H
+#  define ROXLU_USE_CURL_H
+#  include <curl/curl.h>
+#  define RX_CHECK_CURLCODE(c, str) { if(c != CURLE_OK) { printf("Error: %s\n", str); return false; } } 
+
+size_t rx_curl_write_string_data(void* ptr, size_t size, size_t nmemb, void* str);
+size_t rx_curl_write_file_data(void* ptr, size_t size, size_t nmemb, void* fpptr);
+
+bool rx_fetch_url(std::string url, std::string& result);
+bool rx_download_file(std::string url, std::string filepath);
+
+#  endif
+#endif
+
+
+// ------------------------------------------------------------------------------------
 //                              R O X L U _ U S E _ P N G
 // ------------------------------------------------------------------------------------
 
@@ -1938,6 +1969,18 @@ extern float rx_to_float(const std::string& v) {
   return r;
 }
 
+extern std::string rx_int_to_string(const int& v) {
+  std::stringstream ss;
+  ss << v;
+  return ss.str();
+}
+
+extern std::string rx_float_to_string(const float& v) {
+  std::stringstream ss;
+  ss << v;
+  return ss.str();
+}
+
 extern std::vector<std::string> rx_split(std::string str, char delim) {
   std::string line;
   std::stringstream ss(str);
@@ -2035,6 +2078,98 @@ extern int rx_get_minute() {
 
 #endif // defined(ROXLU_IMPLEMENTATION)
 
+// ====================================================================================
+//                              R O X L U _ U S E _ M A T H
+// ====================================================================================
+#if defined(ROXLU_USE_CURL) && defined(ROXLU_IMPLEMENTATION) 
+
+size_t rx_curl_write_string_data(void* ptr, size_t size, size_t nmemb, void* str) {
+  std::string* s = static_cast<std::string*>(str);
+  std::copy((char*)ptr, (char*)ptr + (size * nmemb), std::back_inserter(*s));
+  return size * nmemb;
+}
+
+size_t rx_curl_write_file_data(void* ptr, size_t size, size_t nmemb, void* fpptr) {
+  FILE* fp = static_cast<FILE*>(fpptr);
+  size_t written = fwrite(ptr, size, nmemb, fp);
+  return written;
+}
+
+bool rx_fetch_url(std::string url, std::string& result) {
+  
+  CURL* curl = NULL;
+  CURLcode res;
+
+  curl = curl_easy_init();
+  if(!curl) {
+    printf("Error: cannot intialize curl.\n");
+    return false;
+  }
+
+  res = curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+  RX_CHECK_CURLCODE(res, "Cannot set url");
+
+  res = curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+  RX_CHECK_CURLCODE(res, "Cannot set follow location");
+
+  res = curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
+  RX_CHECK_CURLCODE(res, "Cannot set write data");
+  
+  res = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, rx_curl_write_string_data);
+  RX_CHECK_CURLCODE(res, "Cannot set write function");
+
+  res = curl_easy_perform(curl);
+  RX_CHECK_CURLCODE(res, "Cannot easy perform");
+
+  curl_easy_cleanup(curl);
+  curl = NULL;
+  
+  return true;
+}
+
+bool rx_download_file(std::string url, std::string filepath) {
+
+  FILE* fp = NULL;
+  CURL* curl = NULL;
+  CURLcode res;
+
+  fp = fopen(filepath.c_str(), "wb");
+  if(!fp) {
+    printf("Error: cannot open file: %s\n", filepath.c_str());
+    return false;
+  }
+  
+  curl = curl_easy_init();
+  if(!curl) {
+    printf("Error: cannot initialize cur.\n");
+    return false;
+  }
+
+  res = curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+  RX_CHECK_CURLCODE(res, "Cannot set url");
+
+  res = curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+  RX_CHECK_CURLCODE(res, "Cannot set follow location");
+
+  res = curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+  RX_CHECK_CURLCODE(res, "Cannot set write data");
+  
+  res = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, rx_curl_write_file_data);
+  RX_CHECK_CURLCODE(res, "Cannot set write function");
+
+  res = curl_easy_perform(curl);
+  RX_CHECK_CURLCODE(res, "Cannot easy perform");
+
+  curl_easy_cleanup(curl);
+  curl = NULL;
+
+  fclose(fp);
+  fp = NULL;
+
+  return true;
+}
+
+#endif
 
 // ====================================================================================
 //                              R O X L U _ U S E _ M A T H
