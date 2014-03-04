@@ -1993,6 +1993,9 @@ extern std::string rx_to_data_path(const std::string filename) {
   else if(rx_is_dir(exepath +"../MacOS")) {
     exepath += "../../../data/" +filename;
   }
+  else {
+    exepath += filename;
+  }
 #else 
   exepath += "data/" +filename;
 #endif  
