@@ -1381,7 +1381,7 @@ extern bool rx_save_png(std::string filepath, unsigned char* pixels, int w, int 
 
 extern void rx_print_shader_link_info(GLuint shader);
 extern void rx_print_shader_compile_into(GLuint shader);
-extern GLuint rx_create_program(GLuint vert, GLuint frag);
+extern GLuint rx_create_program(GLuint vert, GLuint frag, bool link = false);
 extern GLuint rx_create_program_with_attribs(GLuint vert, GLuint frag, int nattribs, const char** attribs);
 extern GLuint rx_create_shader(GLenum type, const char* src);
 extern GLuint rx_create_shader_from_file(GLenum type, std::string filepath);
@@ -2795,10 +2795,15 @@ extern void rx_print_shader_compile_info(GLuint shader) {
   }
 }
   
-extern GLuint rx_create_program(GLuint vert, GLuint frag) {
+extern GLuint rx_create_program(GLuint vert, GLuint frag, bool link) {
   GLuint prog = glCreateProgram();
   glAttachShader(prog, vert);
   glAttachShader(prog, frag);
+
+  if(link) {
+    glLinkProgram(prog);
+    rx_print_shader_link_info(prog);
+  }
   return prog;
 }
   
