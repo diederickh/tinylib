@@ -18,7 +18,6 @@
   Tiny library with a couple of handy functions for opengl based applications.
   Sent changes to: https://github.com/roxlu/tinylib
 
-
   TODO:
   -----
   I quickly ported this file to windows, but it needs some more work and testing:
@@ -65,6 +64,7 @@
   Program.recompile()                                                       - recompiles the shader and links the program again
 
   VertexP                                                                   - vertex type for position data
+  VertexPC                                                                  - vertex type for position and color (4) data
   VertexPT                                                                  - vertex type for position and texture coord data
   VertexPT3                                                                 - vertex type for position and texture coord with 3 elements (a q for projective mapping)
   VertexPTN                                                                 - vertex type for position, texture and normal
@@ -75,6 +75,28 @@
   OBJ.hasNormals()                                                          - returns true if the loaded obj has normals
   OBJ.hasTexCoords()                                                        - returns true if the loaded obj had texcoords
   OBJ.copy(std::vector<VertexPT>&)                                          - copy the loaded vertices
+
+  Painter                                                                   - simple helper to draw lines, circles, rectangles, textures with GL 3.x
+  Painter.clear()                                                           - clear all added elements, resets the canvas
+  Painter.draw()                                                            - draw the added shapes
+  Painter.rect(x, y, w, h)                                                  - draw a rectangle
+  Painter.circle(x, y, radius)                                              - draw a circle at x/y with radius 
+  Painter.resolution(6)                                                     - sets the circle resolution
+  Painter.line(x0, y0, x1, y1)                                              - draw one line
+  Painter.texture(texid, x, y, w, h)                                        - draw a texture
+  Painter.color(r,g,b,a)                                                    - set the draw color
+  Painter.fill()                                                            - draw filled shapes
+  Painter.nofill()                                                          - draw only outlines
+  -
+  Painter.resize(w,h)                                                       - call this when the viewport size changes
+  Painter.width()                                                           - return the last set or queried viewport width
+  Painter.height()                                                          - return the last set of queried viewport height
+  -
+  Painter.begin(GL_LINE_STRIP)                                              - begin drawing a type
+  Painter.vertex(x, y)                                                      - add a vertex to the "begin/end" section
+  Painter.end()                                                             - flush added vertices and make sure their drawn
+  -
+  
 
   IMAGES - define `ROXLU_USE_PNG` before including
   ===================================================================================
@@ -1381,7 +1403,7 @@ extern bool rx_load_jpg(std::string filepath, unsigned char** pix, int& width, i
 
 extern void rx_print_shader_link_info(GLuint shader);
 extern void rx_print_shader_compile_into(GLuint shader);
-extern GLuint rx_create_program(GLuint vert, GLuint frag);
+extern GLuint rx_create_program(GLuint vert, GLuint frag, bool link = false);
 extern GLuint rx_create_program_with_attribs(GLuint vert, GLuint frag, int nattribs, const char** attribs);
 extern GLuint rx_create_shader(GLenum type, const char* src);
 extern GLuint rx_create_shader_from_file(GLenum type, std::string filepath);
@@ -1443,6 +1465,15 @@ struct VertexP {
   void set(vec3 p) { pos = p; } 
   float* ptr() { return pos.ptr(); } 
   vec3 pos;
+};
+
+struct VertexPC {
+  VertexPC(){}
+  VertexPC(vec3 pos, vec4 col):pos(pos),col(col){}
+  void set(vec3 p, vec4 c) { pos = p; col = c; } 
+  float* ptr() { return pos.ptr(); } 
+  vec3 pos;
+  vec4 col;
 };
 
 struct VertexPT {
@@ -1633,6 +1664,212 @@ inline bool OBJ::load(std::string filepath) {
   return true;
 } // OBJ::load
 
+
+/*
+  Painter
+  --------
+  
+  The Painter class is a simple wrapper that mimics intermediate 
+  mode of openGL draw calls. This Painter class is not meant to be
+  used in super optimized applications as using this approach is 
+  is just not the correct one for optimized draw calls. Though this
+  class is probably quite fast as we will use vbo's. Goal of is class
+  is to provide a simple way to draw lines, rects, circles etc.. when 
+  you just want to quickly draw something.
+
+  Contexts
+  --------
+  The painter is build around the concept of contexts, where a 
+  context takes care of drawing particular vertex data. At this time
+  we only have a VertexPC renderer, which can draw vertices with color.
+  When ready, we will also have a VertexPT context that can render 
+  textures.
+
+  TODO
+  ----
+  At this point the API might change...
+
+ */
+
+#define PAINTER_CONTEXT_TYPE_PC 1   /* a context that can draw position + colors */
+#define PAINTER_CONTEXT_TYPE_PT 2   /* a context that can draw position + texcoords (not yet implemented) */
+
+#define PAINTER_STATE_NONE 0x0000   /* default state; no-fill */
+#define PAINTER_STATE_FILL 0x0001   /* draw everything filled */
+
+// -----------------------------------------------------
+
+static const char* PAINTER_VERTEX_PC_VS  = ""
+  "#version 330\n"
+  ""
+  "layout( std140 ) uniform Shared { "
+  "  mat4 u_pm; " 
+  "};"
+  ""
+  "layout( location = 0 ) in vec4 a_pos; " 
+  "layout( location = 1 ) in vec4 a_col; "
+  "out vec4 v_col;"
+  ""
+  "void main() {"
+  "  gl_Position = u_pm * a_pos; " 
+  "  v_col = a_col; "
+  "}"
+  "";
+
+static const char* PAINTER_VERTEX_PC_FS = ""
+  "#version 330\n"
+  "in vec4 v_col; " 
+  "layout (location = 0) out vec4 fragcolor; " 
+  ""
+  "void main() {"
+  " fragcolor = v_col; " 
+  "}"
+  "";
+
+// -----------------------------------------------------
+
+static const char* PAINTER_VERTEX_PT_VS = ""
+  "#version 330\n"
+  ""
+  "layout( std140 ) uniform Shared { "
+  "  mat4 u_pm; "
+  "};"
+  ""
+  "layout( location = 0 ) in vec4 a_pos; " 
+  "layout( location = 1 ) in vec2 a_tex; "
+  "out vec2 v_tex;"
+  ""
+  "void main() {"
+  "   gl_Position = u_pm * a_pos; "
+  "   v_tex = a_tex; " 
+  "}"
+  "";
+
+static const char* PAINTER_VERTEX_PT_SAMPLER2D_FS = ""
+  "#version 330\n"
+  "uniform sampler2D u_tex; "
+  "in vec2 v_tex; " 
+  "layout( location = 0 ) out vec4 fragcolor; " 
+  ""
+  "void main() {"
+  "  fragcolor = texture(u_tex, v_tex);"
+  "}"
+  "";
+
+// -----------------------------------------------------
+
+class PainterCommand {
+ public:
+  GLenum type;
+  int offset;
+  int count;
+  GLuint tex; /* the texture, in case we need to draw a texture */
+};
+
+// -----------------------------------------------------
+
+class Painter;
+
+class PainterContextPC {
+
+public:
+  PainterContextPC(Painter& painter);                             /* a PainterContext is used to render specific vertex data. This context renders only colors */
+  void clear();                                                   /* clear all vertices */
+  void update();                                                  /* updates the vbo if necessary */
+  void draw();                                                    /* draws the buffers and commands to screen */
+  void rect(float x, float y, float w, float h);                  /* create a rectangular shape */
+  void circle(float x, float y, float radius);                    /* create a circle */
+  void line(float x0, float y0, float x1, float y1);              /* create a line */
+  void command(GLenum cmd, std::vector<VertexPC>& vertices);      /* adds a command (Painter calls this when using begin()/end() */
+
+public:
+  Painter& painter;                                               /* reference to the main Painter object */
+  std::vector<PainterCommand> commands;                           /* the command that we render */
+  std::vector<VertexPC> vertices;                                 /* the vertices... also stored in vbo */
+  size_t allocated;                                               /* number of bytes allocated in our vbo */
+  bool needs_update;                                              /* is set to true whenever our vbo needs to be updated */
+  GLuint vao;                                                     /* the vao */
+  GLuint vbo;                                                     /* vbo that holds our data on the gpu */
+  GLuint vert;                                                    /* our vertex shader, see PAINTER_VERTEX_PC_VS */
+  GLuint frag;                                                    /* our fragment shader, see PAINTER_VERTEX_PC_FS */
+  GLuint prog;                                                    /* the shader program, used to render our vbo */
+};
+
+// -----------------------------------------------------
+
+class PainterContextPT {
+
+ public:
+  PainterContextPT(Painter& painter);                             /* a PainterContextPT is used to render textures */
+  void clear();                                                   /* clear all vertices */
+  void update();                                                  /* updates the vbo with VertexPT data */
+  void draw();                                                    /* draws the texture */
+  void texture(GLuint tex, float x, float y, float w, float h);   /* add anther texture that should be drawn */
+
+ public:
+  Painter& painter;                                               /* reference to the main Painter object */
+  std::vector<PainterCommand> commands;                           /* the commands/texture draw calls. the type field contains the texture type; at this moment of writing only GL_TEXTURE_2D is supported */
+  std::vector<VertexPT> vertices;                                 /* the vertices we draw */
+  size_t allocated;                                               /* number of bytes we've allocated in the vbo */
+  bool needs_update;                                              /* is set to true whenever we need to udpate the vbo; is set in texture() */
+  GLuint vao;                                                     /* our vao, that contains the vertex info */
+  GLuint vbo;                                                     /* reference to our gpu vbo */
+  GLuint vert;                                                    /* vertex shader for vertexpt data */  
+  GLuint frag;                                                    /* fragment shader for the vertexpt data */
+  GLuint prog;                                                    /* the shader program that draws the texture */
+};
+
+// -----------------------------------------------------
+
+// Shared GL data
+struct PainterShared {
+  mat4 pm;
+};
+
+// -----------------------------------------------------
+
+class Painter {
+
+ public:
+  Painter();
+  void clear();                                                                     /* clear all vertices */
+  void draw();                                                                      /* draw all the added lines, circles, textures etc.. */
+  void rect(float x, float y, float w, float h);                                    /* draw a rectangle */
+  void circle(float x, float y, float radius);                                      /* draw a circle, see resolution() to change the resolution of the circle */
+  void line(float x0, float y0, float x1, float y1);                                /* draw a single line, see begin()/end() if you want to draw line strips */
+  void texture(GLuint tex, float x, float y, float w, float h);                     /* draw a texture, at the time of writing only GL_TEXTURE_2D is supported */
+
+  void begin(GLenum type);                                                          /* begin a batch of vertices, just like the old days  */
+  void vertex(float x, float y);                                                    /* add a vertex to the current batch */
+  void end();                                                                       /* end the current batch; this will flush the added vertices into the correct context */
+
+  void color(float r = 1.0, float g = 1.0, float b = 1.0, float a = 1.0);           /* set the color of lines, circles, rectangles */
+  void fill();                                                                      /* enable fill mode */
+  void nofill();                                                                    /* disable fill mode */
+  void resize(int w, int h);                                                        /* whenever your viewport changes, call this so we can recalculate the projection matrix */
+  void resolution(int n);                                                           /* set the circle resolution */
+
+  int width();                                                                      /* returns the last set/calculated viewport width */
+  int height();                                                                     /* returns the last set/calculated viewport height */
+
+ public:
+  PainterContextPC context_pc;                                                      /* context used to draw VertexPC vertices (color) */
+  PainterContextPT context_pt;                                                      /* context used to draw VertexPT vertices (textures) */
+  int circle_resolution;                                                            /* the last set circle resolution */
+  vec4 col;                                                                         /* the color we use to draw with */
+  int state;                                                                        /* keeps state of the painter; e.g. fill/nofill */
+  GLuint ubo;                                                                       /* shared uniform buffer object with matrice(s) */
+  PainterShared ubo_data;                                                           /* the actual data for our ubo */
+  std::vector<vec2> circle_data;                                                    /* pre-calculated sin/cos values for our circle; just a tiny bit of optimization */
+  int win_w;                                                                        /* the last calculated or set viewport width */
+  int win_h;                                                                        /* the last calculated or set viewport height */
+
+  /* begin() - end() handling */
+  GLenum command_type;                                                              /* when begin() is called we store the command type. the next call to vertex defines what PainterContext we will use; for now only default is used */
+  int context_type;                                                                 /* when begin()/end() is used, a call to one of the overloaded vertex() function will define what context will be used. in end() we add the added vertices to the correct context */
+  std::vector<VertexPC> vertices_pc;                                                /* VertexPC vertices for our PC context */ 
+};
+
 #  endif // ROXLU_USE_OPENGL_MATH_H
 #endif // defined(ROXLU_USE_OPENGL) && defined(ROXLU_USE_MATH)
 
@@ -1796,6 +2033,9 @@ extern std::string rx_to_data_path(const std::string filename) {
   }
   else if(rx_is_dir(exepath +"../MacOS")) {
     exepath += "../../../data/" +filename;
+  }
+  else {
+    exepath += filename;
   }
 #else 
   exepath += "data/" +filename;
@@ -2656,10 +2896,15 @@ extern void rx_print_shader_compile_info(GLuint shader) {
   }
 }
   
-extern GLuint rx_create_program(GLuint vert, GLuint frag) {
+extern GLuint rx_create_program(GLuint vert, GLuint frag, bool link) {
   GLuint prog = glCreateProgram();
   glAttachShader(prog, vert);
   glAttachShader(prog, frag);
+
+  if(link) {
+    glLinkProgram(prog);
+    rx_print_shader_link_info(prog);
+  }
   return prog;
 }
   
@@ -2871,7 +3116,412 @@ Shader& Shader::reload() {
   return load(type, filepath, extra_source);
 }
 
-#endif //  defined(ROXLU_USE_OPENGL) && defined(ROXLU_IMPLEMENATION)
+#endif //  defined(ROXLU_USE_OPENGL) && defined(ROXLU_IMPLEMENTATION)
+
+// ====================================================================================
+//                              R O X L U _ U S E _ O P E N G L 
+//                              R O X L U _ U S E _ M A T H
+// ====================================================================================
+#if defined(ROXLU_USE_OPENGL) && defined(ROXLU_USE_MATH) && defined(ROXLU_IMPLEMENTATION)
+
+PainterContextPT::PainterContextPT(Painter& painter)
+  :painter(painter)
+  ,vao(0)
+  ,vbo(0)
+  ,vert(0)
+  ,frag(0)
+  ,prog(0)
+  ,allocated(0)
+  ,needs_update(false)
+{
+  vert = rx_create_shader(GL_VERTEX_SHADER, PAINTER_VERTEX_PT_VS);
+  frag = rx_create_shader(GL_FRAGMENT_SHADER, PAINTER_VERTEX_PT_SAMPLER2D_FS);
+  prog = rx_create_program(vert, frag);
+  glLinkProgram(prog);
+
+  glGenVertexArrays(1, &vao);
+  glBindVertexArray(vao);
+
+  glGenBuffers(1, &vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  
+  glEnableVertexAttribArray(0); // pos
+  glEnableVertexAttribArray(1); // tex
+  
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexPT), (GLvoid*) 0); // pos
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexPT), (GLvoid*) 12); // tex
+
+  // bind ubo to binding 0
+  glUseProgram(prog);
+  GLint block_dx = glGetUniformBlockIndex(prog, "Shared");
+  printf("block: %d\n", block_dx);
+  glUniformBlockBinding(prog, block_dx, 0);
+  glUniform1i(glGetUniformLocation(prog, "u_tex"), 0);
+  printf(">> %d\n", glGetUniformLocation(prog, "u_tex"));
+}
+
+void PainterContextPT::texture(GLuint tex, float x, float y, float w, float h) {
+  
+  PainterCommand cmd;
+  cmd.type = GL_TEXTURE_2D;
+  cmd.count = 6;
+  cmd.offset = vertices.size();
+  cmd.tex = tex;
+  commands.push_back(cmd);
+  
+  VertexPT a(vec3(x,     y + h, 0.0), vec2(0.0, 1.0)); // bottom left
+  VertexPT b(vec3(x + w, y + h, 0.0), vec2(1.0, 1.0)); // bottom right
+  VertexPT c(vec3(x + w,     y, 0.0), vec2(1.0, 0.0)); // top right
+  VertexPT d(vec3(x,         y, 0.0), vec2(0.0, 0.0)); // top left
+
+  vertices.push_back(a);
+  vertices.push_back(b);
+  vertices.push_back(c);
+  vertices.push_back(a);
+  vertices.push_back(c);
+  vertices.push_back(d);
+
+  needs_update = true;
+}
+
+void PainterContextPT::clear() {
+  vertices.clear();
+  commands.clear();
+}
+
+void PainterContextPT::update() {
+  if(!needs_update) {
+    return;
+  }
+
+  size_t needed = sizeof(VertexPT) * vertices.size();
+  if(needed == 0) {
+    return;
+  }
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+  if(needed > allocated) {
+    allocated = needed;
+    glBufferData(GL_ARRAY_BUFFER, needed, vertices[0].ptr(), GL_STREAM_DRAW);
+  }
+  else {
+    glBufferSubData(GL_ARRAY_BUFFER, 0, needed, vertices[0].ptr());
+  }
+
+  needs_update = false;
+}
+
+void PainterContextPT::draw() {
+
+  if(vertices.size() == 0) {
+    return;
+  }
+
+  glDisable(GL_DEPTH_TEST);
+  glUseProgram(prog);
+  glBindVertexArray(vao);
+
+  glActiveTexture(GL_TEXTURE0);
+
+  for(std::vector<PainterCommand>::iterator it = commands.begin(); it != commands.end(); ++it) {
+    PainterCommand& cmd = *it;
+    glBindTexture(cmd.type, cmd.tex);
+    glDrawArrays(GL_TRIANGLES, cmd.offset, cmd.count);
+  }
+}
+
+// -----------------------------------------------------
+
+PainterContextPC::PainterContextPC(Painter& painter) 
+  :vao(0)
+  ,vbo(0)
+  ,vert(0)
+  ,frag(0)
+  ,prog(0)
+  ,painter(painter)
+  ,needs_update(true)
+  ,allocated(0)
+{
+  vert = rx_create_shader(GL_VERTEX_SHADER, PAINTER_VERTEX_PC_VS);
+  frag = rx_create_shader(GL_FRAGMENT_SHADER, PAINTER_VERTEX_PC_FS);
+  prog = rx_create_program(vert, frag);
+  glLinkProgram(prog);
+
+  glGenVertexArrays(1, &vao);
+  glBindVertexArray(vao);
+
+  glGenBuffers(1, &vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  
+  glEnableVertexAttribArray(0); // pos
+  glEnableVertexAttribArray(1); // col
+  
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexPC), (GLvoid*) 0); // pos
+  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(VertexPC), (GLvoid*) 12); // col
+
+  // bind ubo to binding 0
+  glUseProgram(prog);
+  GLint block_dx = glGetUniformBlockIndex(prog, "Shared");
+  glUniformBlockBinding(prog, block_dx, 0);
+}
+
+void PainterContextPC::rect(float x, float y, float w, float h) {
+
+  VertexPC a(vec3(x,     y + h, 0.0), painter.col); // bottom left
+  VertexPC b(vec3(x + w, y + h, 0.0), painter.col); // bottom right
+  VertexPC c(vec3(x + w,     y, 0.0), painter.col); // top right
+  VertexPC d(vec3(x,         y, 0.0), painter.col); // top left
+
+  PainterCommand cmd;
+  cmd.offset = vertices.size();
+
+  if(painter.state & PAINTER_STATE_FILL) {
+
+    cmd.type = GL_TRIANGLES;
+
+    vertices.push_back(a);
+    vertices.push_back(b);
+    vertices.push_back(c);
+    vertices.push_back(a);
+    vertices.push_back(c);
+    vertices.push_back(d);
+  }
+  else {
+
+    cmd.type = GL_LINE_LOOP;
+    vertices.push_back(a);
+    vertices.push_back(b);
+    vertices.push_back(c);
+    vertices.push_back(d);
+  }
+
+  cmd.count = vertices.size() - cmd.offset;
+  commands.push_back(cmd);
+  needs_update = true;
+}
+
+void PainterContextPC::clear() {
+  vertices.clear();
+  commands.clear();
+}
+
+void PainterContextPC::circle(float x, float y, float radius) {
+  
+  PainterCommand cmd;
+  cmd.offset = vertices.size();
+
+  if(painter.state & PAINTER_STATE_FILL) {
+    cmd.type = GL_TRIANGLE_FAN;
+    vertices.push_back(VertexPC(vec3(x, y, 0), painter.col));
+  }
+  else {
+    cmd.type = GL_LINE_STRIP;
+  }
+
+  cmd.offset = vertices.size();
+
+  for(std::vector<vec2>::iterator it = painter.circle_data.begin(); it != painter.circle_data.end(); ++it) {
+    vec2& v= *it;
+    vertices.push_back(VertexPC(vec3(x + v.x * radius, y + v.y * radius, 0), painter.col));
+  }
+
+  cmd.count = vertices.size() - cmd.offset;
+
+  commands.push_back(cmd);
+  needs_update = true;
+}
+
+void PainterContextPC::line(float x0, float y0, float x1, float y1) {
+  
+  PainterCommand cmd;
+  cmd.type = GL_LINES;
+  cmd.offset = vertices.size();
+  cmd.count = 2;
+  commands.push_back(cmd);
+
+  VertexPC a(vec3(x0, y0, 0), painter.col);
+  VertexPC b(vec3(x1, y1, 0), painter.col);
+  vertices.push_back(a);
+  vertices.push_back(b);
+
+  needs_update = true;
+}
+
+void PainterContextPC::command(GLenum type, std::vector<VertexPC>& v) {
+  
+  PainterCommand command;
+  command.type = type;
+  command.offset = vertices.size();
+  command.count = v.size();
+  
+  std::copy(v.begin(), v.end(), std::back_inserter(vertices));
+
+  commands.push_back(command);
+
+  needs_update = true;
+}
+
+void PainterContextPC::update() {
+
+  if(!needs_update) {
+    return;
+  }
+
+  size_t needed = sizeof(VertexPC) * vertices.size();
+  if(needed == 0) {
+    return;
+  }
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+  if(needed > allocated) {
+    allocated = needed;
+    glBufferData(GL_ARRAY_BUFFER, needed, vertices[0].ptr(), GL_STREAM_DRAW);
+  }
+  else {
+    glBufferSubData(GL_ARRAY_BUFFER, 0, needed, vertices[0].ptr());
+  }
+
+  needs_update = false;
+}
+
+void PainterContextPC::draw() {
+  
+  if(vertices.size() == 0) {
+    return;
+  }
+
+  glUseProgram(prog);
+  glBindVertexArray(vao);
+
+  for(std::vector<PainterCommand>::iterator it = commands.begin(); it != commands.end(); ++it) {
+    PainterCommand& cmd = *it;
+    glDrawArrays(cmd.type, cmd.offset, cmd.count);
+  }
+}
+
+// -----------------------------------------------------
+
+Painter::Painter() 
+  :context_pc(*this)
+  ,context_pt(*this)
+  ,state(PAINTER_STATE_NONE)
+  ,circle_resolution(8)
+  ,ubo(0)
+{
+
+  col[0] = 1.0f;
+  col[1] = 0.0f;
+  col[2] = 0.0f;
+  col[3] = 1.0f;
+
+  glGenBuffers(1, &ubo);
+  glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+  glBufferData(GL_UNIFORM_BUFFER, sizeof(PainterShared), NULL, GL_DYNAMIC_DRAW);
+  glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
+
+  GLint viewport[4];
+  glGetIntegerv(GL_VIEWPORT, viewport);
+  resize(viewport[2], viewport[3]);
+
+  resolution(circle_resolution);
+}
+
+void Painter::clear() {
+  context_pc.clear();
+  context_pt.clear();
+}
+
+void Painter::resolution(int n) {
+  
+  float a = TWO_PI / float(n);
+  for(int i = 0; i <= n; ++i) {
+    circle_data.push_back(vec2(cosf(a * i), sinf(a * i)));
+  }
+}
+
+void Painter::rect(float x, float y, float w, float h) {
+  context_pc.rect(x, y, w, h);
+}
+
+void Painter::circle(float x, float y, float radius) {
+  context_pc.circle(x, y, radius);
+}
+
+void Painter::line(float x0, float y0, float x1, float y1) {
+  context_pc.line(x0, y0, x1, y1);
+}
+
+void Painter::texture(GLuint tex, float x, float y, float w, float h) {
+  context_pt.texture(tex, x, y, w, h);
+}
+
+void Painter::color(float r, float g, float b, float a) {
+
+  col[0] = r;
+  col[1] = g;
+  col[2] = b;
+  col[3] = a;
+}
+
+void Painter::draw() {
+
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  context_pc.update();
+  context_pc.draw();
+
+  context_pt.update();
+  context_pt.draw();
+}
+
+void Painter::resize(int w, int h) {
+
+  ubo_data.pm.ortho(0, w, h, 0, 0.0f, 100.0f);
+
+  glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+  glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PainterShared), ubo_data.pm.ptr());
+
+  win_w = w;
+  win_h = h;
+}
+
+void Painter::fill() {
+  state |= PAINTER_STATE_FILL;
+}
+
+void Painter::nofill() {
+  state &= ~PAINTER_STATE_FILL;
+}
+
+void Painter::begin(GLenum type) {
+  command_type = type;
+}
+
+void Painter::vertex(float x, float y) {
+  context_type = PAINTER_CONTEXT_TYPE_PC;
+  vertices_pc.push_back(VertexPC(vec3(x, y, 0), col));
+}
+
+void Painter::end() {
+
+  if(context_type == PAINTER_CONTEXT_TYPE_PC) {
+    context_pc.command(command_type, vertices_pc);
+    vertices_pc.clear();
+  }
+}
+
+int Painter::width() {
+  return win_w;
+}
+
+int Painter::height() {
+  return win_h;
+}
+
+#endif // defined(ROXLU_USE_OPENGL) && defined(ROXLU_USE_MATH) && defined(ROXLU_IMPLEMENTATION)
 
 // ====================================================================================
 //                              R O X L U _ U S E _ O P E N G L 
