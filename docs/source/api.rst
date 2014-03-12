@@ -201,7 +201,7 @@ OpenGL
          GLuint vert = rx_create_shader_from_file(GL_VERTEX_SHADER, "my_shader.vert");
 
     :param GLenum: What kind of shader to create ``GL_VERTEX_SHADER``, ``GL_FRAGMENT_SHADER``
-    :param std::string: The filepath of the shader to load                   
+    :param string: The filepath of the shader to load                   
 
 
 
