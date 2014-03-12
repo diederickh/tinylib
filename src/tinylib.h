@@ -34,6 +34,7 @@
   #define ROXLU_USE_ALL              - to include all code
   #define ROXLU_USE_OPENGL           - to use the opengl code
   #define ROXLU_USE_PNG              - to use the png loader and saver (needs libpng)
+  #define ROXLU_USE_JPG              - add support for jpg loading
   #define ROXLU_USE_MATH             - to use the vec2, vec3, vec4, mat4 classes
   #define ROXLU_USE_CURL             - enable some curl helpers
 
@@ -101,6 +102,7 @@
   ===================================================================================
   rx_save_png("filename.png", pixels, 640, 480, 3);                         - writes a png using lib png
   rx_load_png("filepath.png", &pix, width, height, nchannels)               - load the pixels, width, height and nchannels for the given filepath. make sure to delete pix (which is unsigned char*)
+  rx_load_jpg("filepath.jpg", &pix, width, height, nchannels)               - loads an jpg file
 
   UTILS
   ===================================================================================
@@ -363,6 +365,7 @@
 extern std::string rx_get_exe_path();
 extern std::string rx_to_data_path(const std::string filename);
 extern bool rx_is_dir(std::string filepath);
+extern bool rx_file_exists(std::string filepath);
 extern std::string rx_strip_filename(std::string path);
 extern std::string rx_strip_dir(std::string path);
 extern bool rx_create_dir(std::string path);
@@ -1336,7 +1339,6 @@ inline float Perlin::noise2D(float vec[2]) {
 #  endif // ROXLU_USE_MATH_H
 #endif // ROXLU_USE_MATH
 
-
 // ------------------------------------------------------------------------------------
 //                              R O X L U _ U S E _ C U R L
 // ------------------------------------------------------------------------------------
@@ -1356,7 +1358,6 @@ bool rx_download_file(std::string url, std::string filepath);
 #  endif
 #endif
 
-
 // ------------------------------------------------------------------------------------
 //                              R O X L U _ U S E _ P N G
 // ------------------------------------------------------------------------------------
@@ -1370,6 +1371,27 @@ extern bool rx_save_png(std::string filepath, unsigned char* pixels, int w, int 
 
 #  endif // ROXLU_USE_PNG_H
 #endif //  defined(ROXLU_USE_PNG)
+
+// ------------------------------------------------------------------------------------
+//                              R O X L U _ U S E _ J P G
+// ------------------------------------------------------------------------------------
+
+#if defined(ROXLU_USE_JPG)
+#  ifndef ROXLU_USE_JPG_H
+#  define ROXLU_USE_JPG_H
+
+#if defined(_WIN32)
+#  define XMD_H
+#  include <jpeglib.h>
+#  undef XMD_H
+#else 
+#  include <jpeglib.h>
+#endif
+
+extern bool rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& height, int& nchannels);
+
+#  endif // ROXLU_USE_JPG_H
+#endif //  defined(ROXLU_USE_JPG)
 
 // ------------------------------------------------------------------------------------
 //                              R O X L U _ U S E _ O P E N G L
@@ -1966,6 +1988,25 @@ extern std::string rx_get_exe_path() {
 }
 #endif // rx_get_exe_path() / win32
 
+extern bool rx_file_exists(std::string filepath) {
+
+#if defined(_WIN32)
+  char* lptr = (char*)filepath.c_str();
+  DWORD dwattrib = GetFileAttributes(lptr);
+  return (dwattrib != INVALID_FILE_ATTRIBUTES && !(dwattrib & FILE_ATTRIBUTE_DIRECTORY));
+
+#elif defined(__APPLE__)
+  int res = access(filepath.c_str(), R_OK);
+  if(res < 0) {
+    return false;
+  }
+#else
+#  error Need to implement rx_file_exists on linux
+#endif
+
+  return true;
+}
+
 #if !defined(WIN32) 
 extern bool rx_is_dir(std::string filepath) {
   struct stat st;
@@ -2513,6 +2554,66 @@ extern void rx_hsv_to_rgb(float* hsv, float* rgb) {
 
 
 #endif // defined(ROXLU_USE_MATH) && defined(ROXLU_IMPLEMENTATON) 
+
+// ====================================================================================
+//                              R O X L U _ U S E _ J P G
+// ====================================================================================
+
+#if defined(ROXLU_USE_JPG) && defined(ROXLU_IMPLEMENTATION)
+
+bool rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& height, int& nchannels) {
+  
+  struct jpeg_error_mgr jerr;
+  struct jpeg_decompress_struct cinfo;
+  FILE* fp;
+  JSAMPARRAY buffer;
+  int stride = 0;
+  int num_bytes = 0;
+  unsigned char* pixels = NULL;
+  
+  if( (fp = fopen(filepath.c_str(), "rb")) == NULL ) {
+    printf("Error: cannot load %s\n", filepath.c_str());
+    return false;
+  }
+
+  cinfo.err = jpeg_std_error(&jerr);
+
+  jpeg_create_decompress(&cinfo);
+  jpeg_stdio_src(&cinfo, fp);
+  jpeg_read_header(&cinfo, TRUE);
+  jpeg_start_decompress(&cinfo);
+
+  stride = cinfo.output_width * cinfo.output_components;
+  nchannels = cinfo.output_components;
+  width = cinfo.output_width;
+  height = cinfo.output_height;
+  num_bytes = width * height * nchannels;
+
+  pixels = new unsigned char[num_bytes];
+  if(!pixels) {
+    printf("Error: cannot allocate pixel buffer for jpg.\n");
+    jpeg_finish_decompress(&cinfo);
+    jpeg_destroy_decompress(&cinfo);
+    fclose(fp);
+    return false;
+  }
+
+  size_t dest_row = 0;
+  buffer = (*cinfo.mem->alloc_sarray)((j_common_ptr) &cinfo, JPOOL_IMAGE, stride, 1);
+  while(cinfo.output_scanline < cinfo.output_height) {
+    jpeg_read_scanlines(&cinfo, buffer, 1);
+    memcpy(pixels + (dest_row * stride), buffer[0], stride);
+    dest_row++;
+  }
+
+  jpeg_finish_decompress(&cinfo);
+  jpeg_destroy_decompress(&cinfo);
+  fclose(fp);
+  *pix = pixels;
+  return true;
+}
+
+#endif // defined(ROXLU_USE_JPG) && defined(ROXLU_IMPLEMENTATON) 
 
 
 // ====================================================================================
