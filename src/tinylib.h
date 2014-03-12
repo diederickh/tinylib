@@ -217,8 +217,8 @@
        
   int num = 10;
   for(int i = 0; i <= num; ++i) {
-  float p = float(i)/num;
-  printf("%d: %f (perc: %f)\n",i, spline.at(p), p);
+    float p = float(i)/num;
+    printf("%d: %f (perc: %f)\n",i, spline.at(p), p);
   }
   </example>
 
@@ -1411,6 +1411,32 @@ extern GLint rx_get_uniform_location(GLuint prog, std::string name);
 extern void rx_uniform_1i(GLuint prog, std::string name, GLint v);
 extern void rx_uniform_1f(GLuint prog, std::string name, GLfloat v);
 extern void rx_uniform_mat4fv(GLuint prog, std::string name, GLsizei count, GLboolean transpose, const GLfloat* value);
+
+/* 
+   As we so often use fullscreen vertex shaders we defined this one. Use this to create
+   a fullscreen vertex shader that has a v_texcoord out varying member. 
+*/
+
+static const char* ROXLU_OPENGL_FULLSCREEN_VS = ""
+  "#version 330\n"
+  "const vec2 verts[4] = vec2[] ("
+  "  vec2(-1.0, 1.0), "
+  "  vec2(-1.0, -1.0), "
+  "  vec2(1.0, 1.0), "
+  "  vec2(1.0, -1.0) "
+  ");"
+  "const vec2 texcoords[4] = vec2[] ("
+  "  vec2(0.0, 0.0), "
+  "  vec2(0.0, 1.0), "
+  "  vec2(1.0, 0.0), "
+  "  vec2(1.0, 1.0) "
+  ");"
+  "out vec2 v_texcoord;"
+  "void main() {"                               
+  "  gl_Position = vec4(verts[gl_VertexID], 0.0, 1.0);"
+  "  v_texcoord = texcoords[gl_VertexID];"
+  "}"
+  "";
 
 class Shader {                                                                                               /* represents a GL shader - works only with shaders loaded from file */
 
