@@ -373,6 +373,7 @@ extern bool rx_create_path(std::string path);
 extern std::string rx_get_file_ext(std::string filename);
 extern std::vector<std::string> rx_get_files(std::string path, std::string ext = "");
 extern std::string rx_norm_path(std::string path);
+extern std::string rx_read_file(std::string filepath);
 
 /* string and conversion utils */
 extern std::string rx_string_replace(std::string, char from, char to);
@@ -387,7 +388,6 @@ extern std::vector<std::string> rx_split(std::string str, char delim);
 extern uint64_t rx_hrtime();
 extern float rx_millis();
 extern std::string rx_strftime(const std::string fmt);
-extern std::string rx_read_file(std::string filepath);
 extern int rx_get_year();
 extern int rx_get_month();
 extern int rx_get_day();
