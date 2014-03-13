@@ -165,6 +165,104 @@ Time utils
    Get the current minutes with 2 digits, [00-60]
 
 
+Image utils
+-----------
+
+.. function:: bool rx_save_png(std::string file, unsigned char* pix, int w, int h, int nchannels, bool flip)
+
+              Save the given pixels to the given filepath.
+              
+              ::
+            
+                  int width = 320;
+                  int height = 240;
+                  unsigned char* pix = new unsigned char[width * height * 3];
+                  
+                  // some pixel data
+                  for(int i = 0; i < width; ++i) {
+                     for(int j = 0; j < height; ++j) {
+                         int dx = j * width * 3 + i * 3;
+                         if(i < (width/2)) {
+                             pix[dx + 0] = 255;
+                             pix[dx + 1] = 255;
+                             pix[dx + 2] = 255;
+                         }
+                         else {
+                             pix[dx + 0] = 0;
+                             pix[dx + 1] = 0;
+                             pix[dx + 2] = 0;
+                         }
+                     }
+                  }
+ 
+                  std::string outfile = rx_to_data_path("test.png");
+
+                  if(rx_save_png(outfile, width, height, 3) == false) {
+                      printf("Error: cannot save PNG: %s\n", outfile.c_str());
+                      ::exit(EXIT_FAILURE);
+                  }
+
+              :param string: Full filepath where to save the image
+              :param unsigned char*: Pointer to the raw pixels you want to save
+              :param int: The width of the pixel buffer 
+              :param int: The height of the pixel buffer
+              :param nchannels: The number of color components (e.g. 1 for grayscale, 3 for RGB)
+              :param bool: Set to true if you want to flip the image horizontally (handy when using ``glReadPixels()``)
+              :rtype: boolean true on success, else false.
+
+
+.. function:: bool rx_load_png(std::string file, unsigned char** pix, int& w, int& h, int& nchannels)
+
+              Load a PNG file from the given filepath and create a pixel buffer, set with, height and nchannels.
+   
+              ::
+
+                  int w = 0;
+                  int h = 0;    
+                  int channels = 0;
+                  unsigned char* pix = NULL;
+
+                  if(rx_load_png("test.png", pix, w, h, channels) == false) {
+                     printf("Error: cannot load the png.\n");
+                     ::exit(EXIT_FAILURE)
+                  }
+
+                  printf("Width: %d\n", w);
+                  printf("Height: %d\n", h);
+                  printf("Color Channels: %d\n", channels);
+
+
+              :param string: Load the png from this filepath.
+              :param unsigned char*: (out) We will allocate a ``unsigned char`` buffer for you; you need to delete this buffer yourself!
+              :param int&: (out) Reference to the width result. We will set the width value of the loaded image to ``w``.
+              :param int&: (out) Reference to the height result. We will set the height value of the loaded image to ``h``.
+              :param int&: (out) The number of color channels in the loaded png.
+              :rtype: true on success, else false
+
+
+.. function:: bool rx_load_jpg(std::string file, unsigned char** pix, int& w, int& height, int& nchannels)
+
+              Loads a JPG file, see ``rx_load_png`` for an example as the function works the same, but only loads a JPG.
+
+              :param string: Load the jpg from this filepath.
+              :param unsigned char*: (out) We will allocate a ``unsigned char`` buffer for you; you need to delete this buffer yourself!
+              :param int&: (out) Reference to the width result. We will set the width value of the loaded image to ``w``.
+              :param int&: (out) Reference to the height result. We will set the height value of the loaded image to ``h``.
+              :param int&: (out) The number of color channels in the loaded jpg.
+              :rtype: true on success, else false
+
+.. function:: bool rx_save_jpg(std::string file, unsigned char* pix, int width, int height, int nchannels, int quality = 80, bool flip = false, J_COLOR_SPACE colorSpace, J_DCT_METHOD dctMethod = JDCT_FASTEST)
+
+              :param string: Save a jpg to this filepath.
+              :param unsigned char*: The pixels you want to save.
+              :param int: The width of the ``pix`` buffer.
+              :param int: The height of the ``pix`` buffer.
+              :param int: The number of color channels. (e.g. 3).
+              :param int: The quality (reasonable values are 65-100, 80 is ok)
+              :param bool: Flip the given input pixels horizontally (e.g. nice when using ``glReadPixels()``)
+              :param J_COLOR_SPACE: The JPEG color space that you pass as `pix`, by default ``JCS_RGB``. Other options ``JCS_GRAYSCALE``, ``JCS_YCbCr``, ``JCS_CMYK``, ``JCS_YCCK``
+              :param J_DCT_METHOD: DCT/IDCT algorithms, by default ``JDCT_FASTEST``. Other options ``JDCT_ISLOW``, ``JDCT_IFAST``, ``JDCT_FLOAT``, ``JDCT_SLOWEST``
+
 OpenGL
 ------
 

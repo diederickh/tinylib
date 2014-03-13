@@ -100,9 +100,10 @@
 
   IMAGES - define `ROXLU_USE_PNG` before including
   ===================================================================================
-  rx_save_png("filename.png", pixels, 640, 480, 3);                         - writes a png using lib png
+  rx_save_png("filename.png", pixels, 640, 480, 3, flip);                   - writes a png using lib png, set flip = true if you want to flip horizontally
   rx_load_png("filepath.png", &pix, width, height, nchannels)               - load the pixels, width, height and nchannels for the given filepath. make sure to delete pix (which is unsigned char*)
   rx_load_jpg("filepath.jpg", &pix, width, height, nchannels)               - loads an jpg file
+  rx_save_jpg("filepath.jpg", pixels, 640, 480, 3);                         - save a jpg file
 
   UTILS
   ===================================================================================
@@ -150,12 +151,12 @@
   ===================================================================================
 
   utils
-  ------------------------------------------------------------------------------
+  -----------------------------------------------------------------------------------
   float rx_random(max)                                                     - generate a random value but limit to max
   float rx_random(min, max)                                                - generate a random value between min and max
   
   vec2, vec3, vec4
-  ------------------------------------------------------------------------------
+  -----------------------------------------------------------------------------------
   float length(v)                                                          - get the length of the vector
   float dot(a, b)                                                          - get the dot product aka squared root
   vec2 max(a)                                                              - get the biggest component value
@@ -170,12 +171,12 @@
   vec3 cross(a,b)                                                          - cross product (vec3)
 
   vec3
-  -----------------------------------------------------------------------------
+  -----------------------------------------------------------------------------------
   vec3 perpendicular(a)                                                    - get a perpendicular vector from the given vec, this vector doesn't have to be normalized!, based on http://lolengine.net/blog/2013/09/21/picking-orthogonal-vector-combing-coconuts 
   bool intersect(a,b,c,d, &result)                                         - checks if two lines intersect line (b-a) and (d-c). resturns true when they intersect and it will set result to the intersection point
   
   mat4
-  ------------------------------------------------------------------------------
+  -----------------------------------------------------------------------------------
   mat4& mat4.rotateX(rad)
   mat4& mat4.rotateY(rad)
   mat4& mat4.rotateZ(rad)
@@ -200,7 +201,7 @@
 
 
   Spline<T>  - catmull rom interpolation (MAKE SURE TO USE AT LEAST 4 POINTS!)
-  ------------------------------------------------------------------------------
+  -----------------------------------------------------------------------------------
 
   Spline<T>.size()                                                       - returns the number of elements added
   Spline<T>.clear()                                                      - removes all added elements
@@ -209,21 +210,21 @@
   Spline<T>.at(float t)                                                  - get the interpolated value at this point
 
   <example>
-  Spline<float> spline;
-  spline.push_back(1.0);
-  spline.push_back(3.0);
-  spline.push_back(6.0);
-  spline.push_back(5.0);
-       
-  int num = 10;
-  for(int i = 0; i <= num; ++i) {
-    float p = float(i)/num;
-    printf("%d: %f (perc: %f)\n",i, spline.at(p), p);
-  }
+     Spline<float> spline;
+     spline.push_back(1.0);
+     spline.push_back(3.0);
+     spline.push_back(6.0);
+     spline.push_back(5.0);
+          
+     int num = 10;
+     for(int i = 0; i <= num; ++i) {
+       float p = float(i)/num;
+       printf("%d: %f (perc: %f)\n",i, spline.at(p), p);
+     }
   </example>
 
   Perlin
-  ------------------------------------------------------------------------------
+  -----------------------------------------------------------------------------------
   Perlin noise, thanks to Ken P.
   The class is based on: http://www.flipcode.com/archives/Perlin_Noise_Class.shtml
   with some super tiny changes. Thanks guys!
@@ -1367,7 +1368,7 @@ bool rx_download_file(std::string url, std::string filepath);
 #  define ROXLU_USE_PNG_H
 
 extern bool rx_load_png(std::string filepath, unsigned char** pixels, int& w, int& h, int& nchannels);
-extern bool rx_save_png(std::string filepath, unsigned char* pixels, int w, int h, int channels);
+extern bool rx_save_png(std::string filepath, unsigned char* pixels, int w, int h, int channels, bool flip);
 
 #  endif // ROXLU_USE_PNG_H
 #endif //  defined(ROXLU_USE_PNG)
@@ -1389,6 +1390,7 @@ extern bool rx_save_png(std::string filepath, unsigned char* pixels, int w, int 
 #endif
 
 extern bool rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& height, int& nchannels);
+extern bool rx_save_jpg(std::string filepath, unsigned char* pix, int width, int height, int nchannels, int quality = 80, bool flip = false, J_COLOR_SPACE colorSpace = JCS_RGB, J_DCT_METHOD dctMethod = JDCT_FASTEST);
 
 #  endif // ROXLU_USE_JPG_H
 #endif //  defined(ROXLU_USE_JPG)
@@ -1909,9 +1911,26 @@ class Painter {
 #  define ROXLU_USE_OPENGL_PNG_H
 
 extern GLuint rx_create_texture(std::string filepath, int internalFormat = -1, int format = -1, int type = -1);
+extern bool rx_create_png_screenshot(std::string filepath); 
 
 #  endif // ROXLU_USE_OPENGL_PNG_H
 #endif // defined(ROXLU_USE_OPENGL) && defined(ROXLU_USE_PNG)
+
+
+// ------------------------------------------------------------------------------------
+//                              R O X L U _ U S E _ O P E N G L 
+//                              R O X L U _ U S E _ J P G
+// ------------------------------------------------------------------------------------
+
+#if defined(ROXLU_USE_OPENGL) && defined(ROXLU_USE_JPG)
+#  ifndef ROXLU_USE_OPENGL_JPG_H
+#  define ROXLU_USE_OPENGL_JPG_H
+
+extern bool rx_create_jpg_screenshot(std::string filepath, int quality = 80); 
+
+#  endif // ROXLU_USE_OPENGL_JPG_H
+#endif // defined(ROXLU_USE_OPENGL) && defined(ROXLU_USE_JPG)
+
 
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2613,6 +2632,79 @@ bool rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& hei
   return true;
 }
 
+bool rx_save_jpg(std::string filepath, unsigned char* pix, int width, int height, int nchannels, int quality, bool flip, J_COLOR_SPACE colorSpace, J_DCT_METHOD dctMethod) {
+
+  if(!pix) {
+    printf("Error: cannot save jpg, invalid pixels.\n");
+    return false;
+  }
+
+  if(width <= 0 || height <= 0) {
+    printf("Error: cannot save jpg, invalid size: %d x %d\n", width, height);
+    return false;
+  }
+
+  if(quality < 0) {
+    quality = 0;
+  }
+  else if(quality > 100) {
+    quality = 100;
+  }
+
+  FILE* fp = fopen(filepath.c_str(), "wb");
+  if(!fp) {
+    printf("Cannot open the file: `%s`", filepath.c_str());
+    fp = NULL;
+    return false;
+  }
+
+  struct jpeg_compress_struct cinfo;
+  struct jpeg_error_mgr jerr;
+  JSAMPROW row_pointer[1];
+
+  cinfo.err = jpeg_std_error(&jerr);
+  jpeg_create_compress(&cinfo);
+  
+  jpeg_stdio_dest(&cinfo, fp);
+
+  // compression parameters
+  cinfo.image_width = width;
+  cinfo.image_height = height;
+  cinfo.input_components = nchannels;
+  cinfo.in_color_space = colorSpace;
+
+  jpeg_set_defaults(&cinfo); // after setting the default we can set our custom settings
+
+  cinfo.dct_method = dctMethod;
+
+  jpeg_set_quality(&cinfo, quality, TRUE /* limit to jpeg baseline values */);
+
+  jpeg_start_compress(&cinfo, TRUE /* write complete data stream */); 
+
+  int stride = width * nchannels;
+
+  if(flip) {
+    while(cinfo.next_scanline < cinfo.image_height) {
+      row_pointer[0] = &pix[ (cinfo.image_height - 1 - cinfo.next_scanline) * stride];
+      jpeg_write_scanlines(&cinfo, row_pointer, 1);
+    }
+  }
+  else {
+    while(cinfo.next_scanline < cinfo.image_height) {
+      row_pointer[0] = &pix[cinfo.next_scanline * stride];
+      jpeg_write_scanlines(&cinfo, row_pointer, 1);
+    }
+  }
+
+  jpeg_finish_compress(&cinfo);
+
+  fclose(fp);
+  fp = NULL;
+
+  jpeg_destroy_compress(&cinfo);
+  return true;
+}
+
 #endif // defined(ROXLU_USE_JPG) && defined(ROXLU_IMPLEMENTATON) 
 
 
@@ -2626,7 +2718,8 @@ extern bool rx_save_png(std::string filepath,
                         unsigned char* pixels, 
                         int w, 
                         int h, 
-                        int channels = 3) 
+                        int channels = 3, 
+                        bool flip = false) 
 {
   
   if(!w || !h) {
@@ -2715,9 +2808,18 @@ extern bool rx_save_png(std::string filepath,
                PNG_COMPRESSION_TYPE_DEFAULT, 
                PNG_FILTER_TYPE_DEFAULT);
   
+  //  unsigned char* p = (h * w * channels);
+  //  int stride = -(w * channels);
   png_bytep* row_ptrs = new png_bytep[h];
-  for(size_t j = 0; j < h; ++j) {
-    row_ptrs[j] = pixels + (j * (w * channels));
+  if(flip) {
+    for(size_t j = 0; j < h; ++j) {
+      row_ptrs[h-(j+1)] = pixels + (j * (w * channels));
+    }
+  }
+  else {
+    for(size_t j = 0; j < h; ++j) {
+      row_ptrs[j] = pixels + (j * (w * channels));
+    }
   }
    
   png_init_io(png_ptr, fp);
@@ -2727,7 +2829,8 @@ extern bool rx_save_png(std::string filepath,
   png_destroy_write_struct(&png_ptr, &info_ptr);
   
   delete[] row_ptrs;
-  
+  row_ptrs = NULL;
+
   fclose(fp);
   
   return true;
@@ -3614,6 +3717,96 @@ extern GLuint rx_create_texture(std::string filepath,
   return tex;
 }
 
+// save a PNG, note that we do not free the allocated pixel buffer. 
+// we don't allocate the pixel buffer because reallocating is a cpu-heavy
+// operation. This mean we might leak some memory if you want to use this
+// function. 
+bool rx_create_png_screenshot(std::string filepath) {
+  static unsigned char* pixels = NULL;
+  static int width = 0;
+  static int height = 0;
+
+  GLint viewport[4] = { 0 };
+  glGetIntegerv(GL_VIEWPORT, viewport);
+  int nbytes_needed = viewport[2] * viewport[3] * 3;
+  int nbytes_allocated = width * height * 3;
+
+  // check if we need to (re)-allocate
+  if(nbytes_needed > nbytes_allocated) {
+
+    if(pixels != NULL) {
+      delete[] pixels;
+    }
+
+    pixels = new unsigned char[nbytes_needed];
+    if(!pixels) {
+      printf("Error: cannot allocate pixels for screenshot.\n");
+      return false;
+    }
+  }
+
+  if(viewport[2] != width) {
+    width = viewport[2];
+  }
+
+  if(viewport[3] != height) {
+    height = viewport[3];
+  }
+
+  glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+
+  return rx_save_png(filepath, pixels, width, height, 3, true);
+}
+
 #endif // defined(ROXLU_USE_OPENGL) && defined(ROXLU_USE_PNG) && defined(ROXLU_IMPLEMENATION)
+
+
+
+// ====================================================================================
+//                              R O X L U _ U S E _ O P E N G L 
+//                              R O X L U _ U S E _ J P G
+// ====================================================================================
+
+#if defined(ROXLU_USE_OPENGL) && defined(ROXLU_USE_JPG) && defined(ROXLU_IMPLEMENTATION)
+
+bool rx_create_jpg_screenshot(std::string filepath, int quality) {
+  static unsigned char* pixels = NULL;
+  static int width = 0;
+  static int height = 0;
+
+  GLint viewport[4] = { 0 };
+  glGetIntegerv(GL_VIEWPORT, viewport);
+  int nbytes_needed = viewport[2] * viewport[3] * 3;
+  int nbytes_allocated = width * height * 3;
+
+  // check if we need to (re)-allocate
+  if(nbytes_needed > nbytes_allocated) {
+
+    if(pixels != NULL) {
+      delete[] pixels;
+    }
+
+    pixels = new unsigned char[nbytes_needed];
+    if(!pixels) {
+      printf("Error: cannot allocate pixels for screenshot.\n");
+      return false;
+    }
+  }
+
+  if(viewport[2] != width) {
+    width = viewport[2];
+  }
+
+  if(viewport[3] != height) {
+    height = viewport[3];
+  }
+
+  glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+
+  return rx_save_jpg(filepath, pixels, width, height, 3, quality, true, JCS_RGB, JDCT_FASTEST);
+}
+
+#endif // defined(ROXLU_USE_OPENGL) && defined(ROXLU_USE_JPG) && defined(ROXLU_IMPLEMENTATION)
+
 
 #undef ROXLU_IMPLEMENTATION
