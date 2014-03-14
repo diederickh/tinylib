@@ -16,14 +16,15 @@
 --------------------------------------------------------------------------------
 
   Tiny library with a couple of handy functions for opengl based applications.
-  Sent changes to: https://github.com/roxlu/tinylib
+  Send changes to: https://github.com/roxlu/tinylib
+
+  You can find more in depth documentation on [Read The Docs](http://tiny-lib.readthedocs.org/en/latest/index.html)
 
   TODO:
   -----
-  I quickly ported this file to windows, but it needs some more work and testing:
   - we're using GLXW to include GL headers now, because default windows headers are GL 1
 
-  Usage:
+  USAGE
   ------
   The tinylib.h file contains the function definitions and declarations. In your
   header files you only use ROXLU_USE_{ALL, OPENGL, PNG, etc..} but in your main.cpp
@@ -43,7 +44,7 @@
   ===================================================================================
   rx_create_shader(GL_VERTEX_SHADER, source_char_p);                        - create a shader, pass type
   rx_create_shader_from_file(GL_VERTEX_SHADER, path);                       - create a shader from a file, give a full path, returns -1 on error
-  rx_create_program(vert, frag);                                            - create a program - DOES NOT LINK
+  rx_create_program(vert, frag, boolLink);                                  - create a program - DOES NOT LINK
   rx_create_program_with_attribs(vert, frag, 2, attr);                      - create a program with attribs + LINKS THE PROGRAM
   rx_print_shader_link_info(prog)                                           - print the program link info
   rx_print_shader_compile_info(vert)                                        - print the shader compile info
@@ -52,6 +53,9 @@
   rx_uniform_1i(prog, name, value)                                          - set a 1i value
   rx_uniform_1f(prog, name, value)                                          - set a 1f value
   rx_uniform_mat4fv(prog, name, count, trans, ptr)                          - set a mat4fv
+
+  rx_create_png_screenshot(filepath)                                        - create a png file from the current framebuffer (must have PNG enabled)
+  rx_create_jpg_screenshot(filepath, quality)                               - create a jpg file from the current framebuffer (must have JPG enabled)
 
   Shader                                                                    - represents a GL shader; only works with files! 
   Shader.load(type, filepath)                                               - load the source for the shader from file 
@@ -130,6 +134,7 @@
   rx_hrtime()                                                              - high resolution timer (time in nano sec)
   rx_millis()                                                              - returns the elapsed millis since the first call as float, 1000 millis returns 1.0
   rx_strftime("%Y/%m%d/")                                                  - strftime wrapper
+  rx_get_time_string()                                                     - get a unique string with the current date time: 2014.01.16_13.12_883  yyyy.mm.dd.hh.ss.iii (ii =  millis) 
   rx_get_year()                                                            - get the current year as int, e.g. 2014
   rx_get_month()                                                           - get the current month as int [00-11]
   rx_get_day()                                                             - get the day of the month [00-31]
@@ -389,6 +394,7 @@ extern std::vector<std::string> rx_split(std::string str, char delim);
 extern uint64_t rx_hrtime();
 extern float rx_millis();
 extern std::string rx_strftime(const std::string fmt);
+extern std::string rx_get_time_string();
 extern int rx_get_year();
 extern int rx_get_month();
 extern int rx_get_day();
@@ -2382,6 +2388,16 @@ extern std::string rx_strftime(const std::string fmt) {
   return result;
 }
 
+extern std::string rx_get_time_string() {
+  double millis = double(rx_hrtime()) / 1000000000.0;
+  uint64_t intpart = (millis - (int)millis) * 1000;
+  std::string millis_str;
+  std::stringstream ss; 
+  ss << intpart;
+  ss >> millis_str;
+  return rx_strftime("%Y.%m.%d_%H.%M.%S_") +millis_str;
+}
+
 extern int rx_get_year() {
   return rx_to_int(rx_strftime("%Y"));
 }
@@ -3753,6 +3769,9 @@ bool rx_create_png_screenshot(std::string filepath) {
     height = viewport[3];
   }
 
+  glPixelStorei(GL_PACK_ALIGNMENT, 4);
+  glPixelStorei(GL_PACK_ROW_LENGTH, width);
+
   glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 
   return rx_save_png(filepath, pixels, width, height, 3, true);
@@ -3800,6 +3819,9 @@ bool rx_create_jpg_screenshot(std::string filepath, int quality) {
   if(viewport[3] != height) {
     height = viewport[3];
   }
+
+  glPixelStorei(GL_PACK_ALIGNMENT, 4);
+  glPixelStorei(GL_PACK_ROW_LENGTH, width);
 
   glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 
