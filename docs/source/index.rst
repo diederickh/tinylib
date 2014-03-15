@@ -24,3 +24,6 @@ Contents:
    guide
    api
 
+
+* :ref:`genindex`
+* :ref:`search`
