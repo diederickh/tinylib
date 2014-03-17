@@ -32,6 +32,35 @@ Overview
   - :cpp:func:`rx_get_files()`
   - :cpp:func:`rx_norm_path()`
   - :cpp:func:`rx_read_file()`
+
+*Time Utils*
+  - :cpp:func:`rx_hrtime()`
+  - :cpp:func:`rx_millis()`
+  - :cpp:func:`rx_strftime()`
+  - :cpp:func:`rx_get_year()`
+  - :cpp:func:`rx_get_month()`
+  - :cpp:func:`rx_get_day()`
+  - :cpp:func:`rx_get_hour()`
+  - :cpp:func:`rx_get_minute()`
+  - :cpp:func:`rx_get_time_string()`
+
+*Image Utils*
+  - :cpp:func:`rx_save_png()`
+  - :cpp:func:`rx_load_png()`
+  - :cpp:func:`rx_save_jpg()`
+  - :cpp:func:`rx_load_jpg()`
+   
+*OpenGL*
+  - :cpp:func:`rx_create_shader()`
+  - :cpp:func:`rx_create_shader_from_file()`
+  - :cpp:func:`rx_create_program_with_attribs()`
+  - :cpp:func:`rx_get_uniform_location()`
+  - :cpp:func:`rx_uniform_1i()`
+  - :cpp:func:`rx_uniform_1f()`
+  - :cpp:func:`rx_uniform_mat4fv()`
+  - :cpp:func:`rx_create_png_screenshot()`
+  - :cpp:func:`rx_create_jpg_screenshot()`
+ 
  
 
 String and conversion utils
@@ -337,7 +366,7 @@ OpenGL
 
    Creates a shader for the given type and filepath.
 
-   :: 
+   ::
 
          GLuint vert = rx_create_shader_from_file(GL_VERTEX_SHADER, "my_shader.vert");
 
