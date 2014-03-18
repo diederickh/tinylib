@@ -37,7 +37,8 @@
   #define ROXLU_USE_PNG              - to use the png loader and saver (needs libpng)
   #define ROXLU_USE_JPG              - add support for jpg loading
   #define ROXLU_USE_MATH             - to use the vec2, vec3, vec4, mat4 classes
-  #define ROXLU_USE_FONT             - to make the roxlu::FreePixel font available
+  #define ROXLU_USE_FONT             - to make the PixelFont font available
+  #define ROXLU_USE_AUDIO            - to use AudioPlayer for simple 44100,2-channel audio playback (need libcubeb)
   #define ROXLU_USE_CURL             - enable some curl helpers
 
 
@@ -255,10 +256,16 @@
 
   CURL - define `ROXLU_USE_CURL`
   ===================================================================================
-  
   rx_fetch_url(std::string url, std::string& result)                 - downloads an url into the given result.
   rx_download_file(std::string url, std::string filepath)            - downloads a file to the given filepath.
 
+  AUDIO - define `ROXLU_USE_AUDIO`  (will need libcubeb: https://github.com/kinetiknz/cubeb and libsndfile)
+  ===================================================================================
+  AudioPlayer player;                                                - creates a audio player
+  player.add(0, "bleep.wav");                                        - add the bleep.wav file (only 44100, 2 channel support atm)
+  player.add(1, "boing.wav");                                        - add the boing.wav with name '1'.
+  player.play(0, 1.0);                                               - playback audio file 0 with volume 1.0
+  
 */
 
 #if defined(ROXLU_USE_ALL)
@@ -268,6 +275,7 @@
 #  define ROXLU_USE_JPG
 #  define ROXLU_USE_FONT
 #  define ROXLU_USE_CURL
+#  define ROXLU_USE_AUDIO
 #endif
 
 // ------------------------------------------------------------------------------------
@@ -1521,7 +1529,7 @@ class Program {
 
   ````c++
   // in your setup
-  roxlu::FreePixel font;
+  PixelFont font;
   font.write(10, 10, "Lorem ipsum dolor sit");
 
   // in your draw function
@@ -2166,6 +2174,117 @@ extern bool rx_create_jpg_screenshot(std::string filepath, int quality = 80);
 #  endif // ROXLU_USE_OPENGL_JPG_H
 #endif // defined(ROXLU_USE_OPENGL) && defined(ROXLU_USE_JPG)
 
+
+// ------------------------------------------------------------------------------------
+//                              R O X L U _ U S E _ A U D I O 
+// ------------------------------------------------------------------------------------
+
+#if defined(ROXLU_USE_AUDIO)
+#  ifndef ROXLU_USE_AUDIO_H
+#  define ROXLU_USE_AUDIO_H
+#  include <sndfile.h>
+#  include <cubeb/cubeb.h>
+#  if defined(__APPLE__) or defined(__linux)
+#    include <pthread.h>
+#  endif
+
+/*
+
+  AudioPlayer
+  -----------
+  
+  The audio player uses libsndfile and libcubeb (Firefox' audio output layer) to 
+  load and playback audio files. At this moment we only support audio files with 
+  a samplerate of 44100, 2 channels. 
+
+  On Mac you must link with:
+  --------------------------
+  - cubeb (https://github.com/kinetiknz/cubeb)
+  - pthreads
+  - AudioUnit framework
+  - CoreAudio framework
+  - AudioToolbox framework
+
+
+  High level description:
+  -----------------------
+  AudioPlayer:         interface that is supposed to use to add audio files and play them
+  AudioFile:           holds a buffer (data) with float (2-channel) audio
+  AudioPlaybackState:  a user can play the same audio file multiple times; this object keeps 
+                       track of the current read position in the AudioFile.data member
+
+  ````c++
+  AudioPlayer player;
+
+  player.add(0, "boing.wav");
+  player.add(1, "bleep.wav");
+  player.add(2, "zweeep.wav");
+
+  AudioPlaybackState* state = player.play(0);
+  if(state) {
+     state->volume(0.5);
+  }
+  ````                       
+
+*/
+
+class AudioPlayer;
+
+long audioplayer_data_cb(cubeb_stream* stm, void* user, void* buffer, long nframes);      /* The callback that gets called by cubeb that whenever it wants some more audio data */
+void audioplayer_state_cb(cubeb_stream* stm, void* user, cubeb_state state);              /* Is called whenever a stream starts or stops */
+
+/* ----------------------------------- */
+
+class AudioFile {                                                                         /* An AudioFile will hold the raw loaded audio data */
+ public:
+  AudioFile();
+  bool load(std::string filepath);                                                        /* Loads the given audio filepath usign libsnd file */
+
+ public:
+  SNDFILE* sf;                                                                            /* Handle to the sound file */
+  SF_INFO info;                                                                           /* Contains information about the loaded sound file. See libsndfile documentation for more info */
+  std::vector<float> data;                                                                /* The raw audio data */
+};
+
+/* ----------------------------------- */
+
+class AudioPlaybackState {                                                                /* Everytime you call AudioPlayer::play() we create a new AudioPlaybackState instance that keeps track of the read position for this sample */
+ public: 
+  AudioPlaybackState(int name, AudioFile* file);                                          /* C'tor; pass the name of the audio file and a pointer to the actual AudioFile itself that contains the audio data */
+  ~AudioPlaybackState();
+  void volume(float level) ;                                                              /* Set the volume: 0 - off, 1.0 full */
+
+ public:
+  AudioFile* file;                                                                        /* Pointer to the audio file */
+  size_t read_pos;                                                                        /* The current read position in the file->data member. */
+  float volume_level;                                                                     /* Each playstate keeps track of it's own volume */
+  int name;                                                                               /* The name of the audio file that we play (a redundant, easy helper) */
+};
+
+/* ----------------------------------- */
+
+class AudioPlayer {                                                                       /* The AudioPlayer manages all the audio files and states. */
+ public:
+  AudioPlayer();                                                                          /* C'tor, creates the necessary cubeb context and stream. */
+  ~AudioPlayer();                                                                         /* D'tor, cleans up all allocated members. */
+  bool add(int name, std::string filepath);                                               /* Add a new audio file for the given name and filepath. Note that we use libsndfile to load the audio files. */
+  AudioPlaybackState* play(int name, float volume = 1.0);                                 /* Playback the given audio name. We return the state object on which you can set the volume. On error we return NULL. */
+  void lock();                                                                            /* Locks a mutex; used to sync access to the play_states member. */
+  void unlock();                                                                          /* Unlocks a mutex; "" "" "" */
+
+ public:
+  cubeb* cube_ctx;                                                                        /* The cubeb state */
+  cubeb_stream* cube_stream;                                                              /* The cubeb_stream to playback the audio samples. We only have one stream. */
+  std::map<int, AudioFile*> files;                                                        /* The added files */
+  std::vector<AudioPlaybackState*> play_states;                                           /* The playback states; each state keeps track of what frames to play and the volume */
+
+#if defined(__APPLE__) or defined(__linux) 
+  pthread_mutex_t mutex;                                                                  /* Used to lock the mutex to protect the play_states member. */
+#endif  
+};
+
+#  endif // ROXLU_USE_AUDIO_H
+#endif // defined(ROXLU_USE_AUDIO)
 
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4420,5 +4539,304 @@ class PixelFont : public roxlu::Font {
 };
 
 #endif // defined(ROXLU_USE_OPENGL) && defined(ROXLU_USE_FONT) && defined(ROXLU_IMPLEMENTATION)
+
+
+// ====================================================================================
+//                              R O X L U _ U S E _ A U D I O 
+// ====================================================================================
+
+#if defined(ROXLU_USE_AUDIO) && defined(ROXLU_IMPLEMENTATION)
+
+/* AUDIO FILE */
+/* ----------------------------------- */
+AudioFile::AudioFile()
+:sf(NULL)
+{
+}
+
+bool AudioFile::load(std::string filepath) {
+
+  if(sf != NULL) {
+    printf("Error: already loaded.\n");
+    return false;
+  }
+  
+  info.format = 0;
+  sf = sf_open(filepath.c_str(), SFM_READ, &info);
+
+  if(sf == NULL) {
+    printf("Erorr: cannot open the audio file: %s\n", filepath.c_str());
+    return false;
+  }
+
+  if(info.samplerate != 44100) {
+    printf("Error: we only support a samplerate of 44100 now.\n");
+    if(sf_close(sf) != 0) {
+      printf("Error: cannot close the just opened sound file.\n");
+    }
+    sf = NULL;
+    return false;
+  }
+  
+  if(info.channels != 2) {
+    printf("Error: we only support 2 channels of audio atm.\n");
+    if(sf_close(sf) != 0) {
+      printf("Error: cannot close the just opened sound file.\n");
+    }
+    sf = NULL;
+    return false;
+  }
+
+  // read all audio data as floats.
+  sf_count_t nread = 0;
+  int chunk_size = 1024 * 1024;
+  int read_items = info.channels * chunk_size;
+  float* tmp = new float[read_items];
+  
+  do { 
+    nread = sf_readf_float(sf, tmp, chunk_size);
+    std::copy(tmp, tmp + (nread * info.channels), std::back_inserter(data));
+  } while(nread > 0);
+
+  delete[] tmp;
+
+  if(sf_close(sf) != 0) {
+    printf("Error: cannot close the file.\n");
+    return false;
+  }
+
+  printf("Samplerate: %d\n", info.samplerate);
+  printf("Channels: %d\n", info.channels);
+  printf("Data.size: %ld\n", data.size());
+
+  return true;
+}
+
+/* PLAYBACK STATE */
+/* ----------------------------------- */
+AudioPlaybackState::AudioPlaybackState(int name, AudioFile* file)
+  :name(name)
+  ,file(file)
+  ,volume_level(1.0)
+  ,read_pos(0)
+{
+}
+
+AudioPlaybackState::~AudioPlaybackState() {
+  name = -1;
+  file = NULL;
+  volume_level = 0.0f;
+  read_pos = 0;
+}
+
+void AudioPlaybackState::volume(float level) {
+  volume_level = level;
+}
+
+/* AUDIO PLAYER */
+/* ----------------------------------- */
+
+AudioPlayer::AudioPlayer() 
+:cube_ctx(NULL)
+,cube_stream(NULL)
+{
+
+#if defined(__APPLE__) or defined(__linux)
+  int status = pthread_mutex_init(&mutex, NULL);
+  if(status != 0) {
+    printf("Error: cannot initialize the mutex for the audio player.\n");
+    ::exit(EXIT_FAILURE);
+  }
+#endif
+
+  if(cubeb_init(&cube_ctx, "AudioPlayer") != CUBEB_OK) {
+    printf("Error: cannot initialize cubeb.\n");
+    ::exit(EXIT_FAILURE);
+  }
+
+  cubeb_stream_params params;
+  params.format = CUBEB_SAMPLE_FLOAT32LE;
+  params.rate = 41000;
+  params.channels = 2;
+
+  unsigned int latency_ms = 250;
+  cubeb_stream_init(cube_ctx, &cube_stream, "stream", params, 
+                    latency_ms, audioplayer_data_cb, audioplayer_state_cb, this);
+}
+
+AudioPlayer::~AudioPlayer() {
+
+  if(play_states.size() > 0 && cube_stream != NULL) {
+    cubeb_stream_stop(cube_stream);
+    cube_stream = NULL;
+  }
+
+  if(cube_ctx != NULL) {
+    cubeb_destroy(cube_ctx);
+    cube_ctx = NULL;
+  }
+
+  // free all play states.
+  for(size_t i = 0; i < play_states.size(); ++i) {
+    delete play_states[i];
+  }
+  play_states.clear();
+
+  // free all files.
+  for(size_t i = 0; i < files.size(); ++i) {
+    delete files[i];
+  }
+  files.clear();
+
+  // free the mutex.
+#if defined(__APPLE__) or defined(__linux)
+  int status = pthread_mutex_destroy(&mutex);
+  if(status != 0) {
+    printf("Error: cannot destroy the mutex.\n");
+  }
+#endif
+}
+
+bool AudioPlayer::add(int name, std::string filepath) {
+
+  AudioFile* af = new AudioFile();
+  if(!af->load(filepath)) {
+    printf("Error: cannot open the audio file: %s\n", filepath.c_str());
+    delete af;
+    af = NULL;
+    return false;
+  }
+
+  files[name] = af;
+
+  return true;
+}
+
+void AudioPlayer::lock() {
+#if defined(__APPLE__) or defined(__linux) 
+  int status = pthread_mutex_lock(&mutex);
+  if(status != 0) {
+    printf("Error: cannot lock the mutex.\n");
+  }
+#endif
+}
+
+
+void AudioPlayer::unlock() {
+#if defined(__APPLE__) or defined(__linux) 
+  int status = pthread_mutex_unlock(&mutex);
+  if(status != 0) {
+    printf("Error: cannot unlock the mutex.\n");
+  }
+#endif
+}
+
+AudioPlaybackState* AudioPlayer::play(int name, float volume) {
+
+  // find the file or stop when not found.
+  std::map<int, AudioFile*>::iterator it = files.find(name);
+  if(it == files.end()) {
+    printf("Error: cannot find the file for name: %d\n", name);
+    return NULL;
+  }
+
+  // Start the stream if this is the first playback.
+  lock();
+  {
+    if(play_states.size() == 0) {
+      if(cubeb_stream_start(cube_stream) != CUBEB_OK) {
+        printf("Error: cannot start the cubeb stream.\n");
+        unlock();
+        return NULL;
+      }
+    }
+  }
+  unlock();
+
+  // add a new playback state that is used in the data callback
+  AudioPlaybackState* play_state = new AudioPlaybackState(name, it->second);
+  play_state->volume(volume);
+
+  lock();
+  {
+    play_states.push_back(play_state);
+  }
+  unlock();
+
+  return play_state;
+}
+
+long audioplayer_data_cb(cubeb_stream* stm, void* user, void* buffer, long nframes) {
+
+  // at this moment we only support 2 channel audio
+  AudioPlayer* player = static_cast<AudioPlayer*>(user);
+  float* buf = (float*)buffer;
+  int nchannels = 2;
+
+  // clear
+  memset(buf, 0x00, (nframes * nchannels * sizeof(float)));
+
+  // copy the states over so we don't interfere with the cross-thread data
+  std::vector<AudioPlaybackState*> states;
+  player->lock();
+  {
+    std::copy(player->play_states.begin(), player->play_states.end(), std::back_inserter(states));
+  }
+  player->unlock();
+
+  // loop over all playback states and mix the audio together.
+  for(size_t i = 0; i < states.size(); ++i) {
+
+    AudioPlaybackState* play_state = states[i];
+    AudioFile* file = play_state->file;
+
+    if(play_state->read_pos < file->data.size()) {
+
+      int nelems_needed = nframes * 2; // 2 channels
+      int nelems_left = file->data.size() - play_state->read_pos;
+      int nelems_read = std::min<int>(nelems_needed, nelems_left);
+
+      for(size_t i = 0; i < nelems_read; ++i) {
+        int read_dx = play_state->read_pos + i;
+        buf[i] += (file->data[read_dx] * play_state->volume_level);
+      }
+
+      play_state->read_pos += nelems_read;
+    }
+  }
+
+  // remove play states that are ready.
+  player->lock();
+  {
+    std::vector<AudioPlaybackState*>::iterator it = player->play_states.begin();
+    while(it != player->play_states.end()) {
+      AudioPlaybackState* state = *it;
+      if(state->read_pos >= state->file->data.size()) {
+        it = player->play_states.erase(it);
+        delete state;
+        state = NULL;
+      }
+      else {
+        ++it;
+      }
+    }
+
+    // check if we need to stop the stream for now.
+    if(player->play_states.size() == 0) {
+      if(cubeb_stream_stop(player->cube_stream) != CUBEB_OK) {
+        printf("Error: something went wrong while trying to stop the audio stream.\n");
+      }
+    }
+  }
+  player->unlock();
+
+  return nframes;
+}
+
+void audioplayer_state_cb(cubeb_stream* stm, void* user, cubeb_state state) {
+}
+
+#endif //  defined(ROXLU_USE_AUDIO) && defined(ROXLU_IMPLEMENTATION)
+
 
 #undef ROXLU_IMPLEMENTATION
