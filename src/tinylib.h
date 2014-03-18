@@ -4605,9 +4605,11 @@ bool AudioFile::load(std::string filepath) {
     return false;
   }
 
+#if 0
   printf("Samplerate: %d\n", info.samplerate);
   printf("Channels: %d\n", info.channels);
   printf("Data.size: %ld\n", data.size());
+#endif
 
   return true;
 }
@@ -4720,7 +4722,6 @@ void AudioPlayer::lock() {
   }
 #endif
 }
-
 
 void AudioPlayer::unlock() {
 #if defined(__APPLE__) or defined(__linux) 
@@ -4837,6 +4838,5 @@ void audioplayer_state_cb(cubeb_stream* stm, void* user, cubeb_state state) {
 }
 
 #endif //  defined(ROXLU_USE_AUDIO) && defined(ROXLU_IMPLEMENTATION)
-
 
 #undef ROXLU_IMPLEMENTATION
