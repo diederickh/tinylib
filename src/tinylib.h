@@ -2205,6 +2205,17 @@ extern bool rx_create_jpg_screenshot(std::string filepath, int quality = 80);
   - CoreAudio framework
   - AudioToolbox framework
 
+  On Linux you must link with (depending how you compiled libsndfile):
+  -------------------------------------------------------------------
+  -lz
+  -lpthread
+  -logg
+  -lvorbis
+  -lvorbisenc
+  -lFLAC
+  -ldl
+  -lasound
+
 
   High level description:
   -----------------------
