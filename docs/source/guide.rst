@@ -32,9 +32,11 @@ features you want to use. You can use the following defines:
 
 - ``ROXLU_USE_MATH`` To enable mat4, mat3, vec4, vec3, vec2, Perlin, Spline
 - ``ROXLU_USE_PNG`` To enable loading and saving of PNG files
-- ``ROXLU_USE_OPENGL`` To enable Shader, Program, OBJ, Painter, VertexP, etc..
 - ``ROXLU_USE_JPG`` To enable loading of JPG files
+- ``ROXLU_USE_OPENGL`` To enable Shader, Program, OBJ, Painter, VertexP, etc..
 - ``ROXLU_USE_CURL`` To enable loading of remote data over http
+- ``ROXLU_USE_AUDIO`` To enable audio output
+- ``ROXLU_USE_FONT`` To enable PixelFont to draw bitmap strings (with opengl)
 - ``ROXLU_USE_ALL`` To enable everything
 
 Note that some of these defines enable code that are depending on other libraries see
@@ -70,10 +72,35 @@ Dependencies
 
 When you enable certain features there are some dependencies which are listed below:
 
-- libcurl_: When you use ``ROXLU_USE_CURL``
-- libpng_: When you use ``ROXLU_USE_PNG``
-- libjpeg_: When you use ``ROXLU_USE_JPG``
+ROXLU_USE_CURL
+  - libcurl_
+
+ROXLU_USE_PNG
+  -  libpng_
+
+ROXLU_USE_JPG
+  - libjpeg_
+
+ROXLU_USE_AUDIO
+  - libcubeb_
+  - libsndfile_
+     
+  On Mac you need to link with the following libraries and frameworks:
+
+  - pthreads
+  - AudioUnit framework
+  - CoreAudio framework
+  - AudioToolbox framework
+
+  On Linux you need to link with the following libraries:
+
+  - pthread
+  - dl
+  - asound
+     
 
 .. _libcurl: http://curl.haxx.se/libcurl/
 .. _libpng: http://www.libpng.org/pub/png/libpng.html
 .. _libjpeg: http://libjpeg.sourceforge.net/
+.. _libcubeb: https://github.com/kinetiknz/cubeb
+.. _libsndfile: http://www.mega-nerd.com/libsndfile/

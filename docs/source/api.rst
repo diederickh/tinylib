@@ -477,3 +477,5 @@ OpenGL
    :returns: boolean, true on success else false. 
 
 
+Audio
+-----
