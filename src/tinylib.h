@@ -3698,10 +3698,8 @@ PainterContextPT::PainterContextPT(Painter& painter)
   // bind ubo to binding 0
   glUseProgram(prog);
   GLint block_dx = glGetUniformBlockIndex(prog, "Shared");
-  printf("block: %d\n", block_dx);
   glUniformBlockBinding(prog, block_dx, 0);
   glUniform1i(glGetUniformLocation(prog, "u_tex"), 0);
-  printf(">> %d\n", glGetUniformLocation(prog, "u_tex"));
 }
 
 void PainterContextPT::texture(GLuint tex, float x, float y, float w, float h) {
