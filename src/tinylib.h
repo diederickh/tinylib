@@ -315,6 +315,7 @@
 #  include <sys/stat.h>                             /* stat() */
 #  include <unistd.h>                               /* sysconf */
 #  include <dirent.h>                               /* DIR */
+#  include <errno.h>                                /* errno */
 #elif defined(__linux)
 #  include <string.h>                               /* strlen() */
 #  include <dirent.h>                               /* stat() */
