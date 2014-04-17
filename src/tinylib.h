@@ -135,7 +135,7 @@
   rx_create_dir("/path/to")                                                - creates the given directory
   rx_create_path("/a/b/c")                                                 - creates the path. all subdirectories too)
   rx_norm_path("/some/path/")                                              - creates a normalized, cross platform path. always pass in forward slashes; on windows you'll get backslashes
-  rx_get_files("/path/", ".jpg")                                           - returns a std::vector<std::string> with the files found in the given dir which have the given extension.
+  rx_get_files("/path/", "jpg")                                            - returns a std::vector<std::string> with the files found in the given dir which have the given extension.
   rx_get_file_ext("/file/path.jpg")                                        - returns the extension of a file ("jpg", "gif", etc..)
                                                                            
   rx_split("string", '/')                                                  - splits a string on the given character returning std::vector<std::string>
@@ -202,7 +202,7 @@
   mat4& mat4.translate(vec3 v)
   mat4& mat4.ortho(l, r, b, t, n , f)
   mat4& mat4.frustum(l, r, b, t, n, f)
-  mat4& mat4.perspective(fov, aspect, near, far)
+  mat4& mat4.perspective(fov, aspect, near, far)                           - create a perspective projection matrix 
   mat4& mat4.lookat(eye, pos, up)
   void  mat4.print()
   float* mat4.ptr()                                                        - get a pointer to the data
