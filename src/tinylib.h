@@ -632,6 +632,7 @@ class Vec4 {
   Vec4(const Vec4<T>& o);
   Vec4(T f);
     
+  void set(const float xv, const float yv, const float zv, const float wv);
   T* ptr();
   T& operator [](const unsigned int dx);
     
@@ -668,6 +669,7 @@ template<class T> inline Vec4<T>::Vec4() : x(), y(), z(), w() {}
 template<class T> inline Vec4<T>::Vec4(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) {}
 template<class T> inline Vec4<T>::Vec4(const Vec4<T>& o) : x(o.x), y(o.y), z(o.z), w(o.w) {}
 template<class T> inline Vec4<T>::Vec4(T f) : x(f), y(f), z(f), w(f) {}
+template<class T> inline void Vec4<T>::set(const float xv, const float yv, const float zv, const float wv) { x = xv; y = yv; z = zv; w = wv; } 
 template<class T> inline T* Vec4<T>::ptr() { return &x; }
 template<class T> inline T& Vec4<T>::operator [](const unsigned int dx) { return *(&x + dx); }
 template<class T> inline Vec4<T> Vec4<T>::operator + () const { return Vec4<T>(+x, +y, +z, +w); };
@@ -1798,7 +1800,7 @@ struct VertexPT {
   vec2 tex;
 };
 
-struct VertexPT3 {
+struct VertexPT3 {    /* Position Texcoord 3 */
   VertexPT3(){}
   VertexPT3(vec3 p, vec3 t):pos(p),tex(t){}
   void set(vec3 p, vec3 t) { pos = p; tex = t; } 
@@ -1819,7 +1821,7 @@ struct VertexPTN {
 };
 
 struct VertexPN {
-  VertexPN();
+  VertexPN(){}
   VertexPN(vec3 p, vec3 n):pos(p),norm(n){}
   void set(vec3 p, vec3 n) { pos = p; norm = n; }
   float* ptr() { return pos.ptr(); }
@@ -1827,9 +1829,21 @@ struct VertexPN {
   vec3 norm;
 };
 
+/* Position, Texcoord, Tangent, Normal */
+struct VertexPTTN {
+  VertexPTTN(){};
+  VertexPTTN(vec3 p, vec2 tex, vec4 tan, vec3 norm):pos(p),tex(tex),tan(tan),norm(norm) { } 
+  void set(vec3 vp, vec2 vtex, vec4 vtan, vec3 vnorm) { pos = vp; tex = vtex; tan = vtan; norm = vnorm; } 
+  float* ptr() { return pos.ptr(); } 
+  vec3 pos;
+  vec2 tex;
+  vec4 tan;      /* w-coordinate defines handedness */
+  vec3 norm;
+};
+
 class OBJ {
  public:
-  struct TRI { int v, t, n; };
+  struct TRI { int v, t, n, tan; }; /* v = vertex index, t = texcoord index, n = normal index, tan = tangent index */
   struct FACE { TRI a, b, c; };
   struct XYZ {  float x, y, z; };
   struct TEXCOORD { float s, t; };
@@ -1838,50 +1852,61 @@ class OBJ {
 
   bool hasNormals();
   bool hasTexCoords();
+  bool hasTangents();
 
   template<class T>
     bool copy(T& result);
 
-  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexP>& verts);
-  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPTN>& verts);
-  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPT>& verts);
-  void push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPN>& verts);
+  void push_back(vec3 vert, vec3 norm, vec2 tc, vec4 tan, std::vector<VertexP>& verts);
+  void push_back(vec3 vert, vec3 norm, vec2 tc, vec4 tan, std::vector<VertexPTN>& verts);
+  void push_back(vec3 vert, vec3 norm, vec2 tc, vec4 tan, std::vector<VertexPT>& verts);
+  void push_back(vec3 vert, vec3 norm, vec2 tc, vec4 tan, std::vector<VertexPN>& verts);
+  void push_back(vec3 vert, vec3 norm, vec2 tc, vec4 tan, std::vector<VertexPTTN>& verts);
+
+ private:
+  void calculateTangents();
 
  public:
   std::vector<vec3> vertices;
   std::vector<vec3> normals;
   std::vector<vec2> tex_coords;
+  std::vector<vec4> tangents;
   std::vector<OBJ::FACE> faces;
   std::vector<int> indices;
   bool has_texcoords;
   bool has_normals;
+  bool has_tangents;
 }; // OBJ
 
 template<class T>
 inline bool OBJ::copy(T& result) {
   for(std::vector<FACE>::iterator it = faces.begin(); it != faces.end(); ++it) {
     FACE& f = *it;
-    push_back(vertices[f.a.v], normals[f.a.n], tex_coords[f.a.t], result) ;
-    push_back(vertices[f.b.v], normals[f.b.n], tex_coords[f.b.t], result) ;
-    push_back(vertices[f.c.v], normals[f.c.n], tex_coords[f.c.t], result) ;
+    push_back(vertices[f.a.v], normals[f.a.n], tex_coords[f.a.t], tangents[f.a.tan], result) ;
+    push_back(vertices[f.b.v], normals[f.b.n], tex_coords[f.b.t], tangents[f.b.tan], result) ;
+    push_back(vertices[f.c.v], normals[f.c.n], tex_coords[f.c.t], tangents[f.c.tan], result) ;
   }
   return true;
 }
 
-inline void OBJ::push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexP>& verts) {
+inline void OBJ::push_back(vec3 vert, vec3 norm, vec2 tc, vec4 tan, std::vector<VertexP>& verts) {
   verts.push_back(VertexP(vert));
 }
 
-inline void OBJ::push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPTN>& verts) {
+inline void OBJ::push_back(vec3 vert, vec3 norm, vec2 tc, vec4 tan, std::vector<VertexPTN>& verts) {
   verts.push_back(VertexPTN(vert, tc, norm));
 }
 
-inline void OBJ::push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPT>& verts) {
+inline void OBJ::push_back(vec3 vert, vec3 norm, vec2 tc, vec4 tan, std::vector<VertexPT>& verts) {
   verts.push_back(VertexPT(vert, tc));
 }
 
-inline void OBJ::push_back(vec3 vert, vec3 norm, vec2 tc, std::vector<VertexPN>& verts) {
+inline void OBJ::push_back(vec3 vert, vec3 norm, vec2 tc, vec4 tan, std::vector<VertexPN>& verts) {
   verts.push_back(VertexPN(vert, norm));
+}
+
+inline void OBJ::push_back(vec3 vert, vec3 norm, vec2 tc, vec4 tan, std::vector<VertexPTTN>& verts) {
+  verts.push_back(VertexPTTN(vert, tc, tan, norm));
 }
 
 inline bool OBJ::hasNormals() {
@@ -1897,6 +1922,7 @@ inline bool OBJ::load(std::string filepath) {
   // are unset below
   has_normals = true;
   has_texcoords = true;
+  has_tangents = true;
 
   std::ifstream ifs;
   ifs.open(filepath.c_str());
@@ -1948,6 +1974,7 @@ inline bool OBJ::load(std::string filepath) {
         tri.v = atoi(indices[0].c_str()) - 1;
         tri.t = atoi(indices[1].c_str()) - 1;
         tri.n = atoi(indices[2].c_str()) - 1;
+        tri.tan = 0;
         tris.push_back(tri);
       }
       if(tris.size() == 3) {
@@ -1961,6 +1988,17 @@ inline bool OBJ::load(std::string filepath) {
         printf("Error: wrong face indices.\n");
       }
     }
+  }
+  
+  // we need to have a reserved tangents in either case ...
+  tangents.assign(vertices.size(), vec4());
+
+  // create empty tangents when we don't have texcoord / normals that we need to calculate them.
+  if(!normals.size() || !tex_coords.size()) {
+    has_tangents = false;
+  }
+  else {
+    calculateTangents();
   }
 
   // create empty texcoords/normals when not found so we just return invalid values but wont crash
@@ -1976,6 +2014,81 @@ inline bool OBJ::load(std::string filepath) {
   return true;
 } // OBJ::load
 
+
+/* from: Mathematics for 3D Game Programming and Computer Graphics, 3rd edition, Eric Lengyel */
+inline void OBJ::calculateTangents() {
+
+  if(!normals.size() || !tex_coords.size()) {
+    printf("Error: cannot calculate tangents because we have no normals and/or texcoords.\n");
+    return;
+  }
+  
+  vec3* tan1 = new vec3[vertices.size() * 2];
+  vec3* tan2 = tan1 + vertices.size();
+  memset(tan1, 0x00, sizeof(vec3) * vertices.size() * 2);
+
+  for(size_t i = 0; i < faces.size(); ++i) {
+    OBJ::FACE& face = faces[i];
+
+    int i1 = face.a.v;
+    int i2 = face.b.v;
+    int i3 = face.c.v;
+
+    vec3& v1 = vertices[face.a.v];
+    vec3& v2 = vertices[face.b.v];
+    vec3& v3 = vertices[face.c.v];
+
+    vec2& c1 = tex_coords[face.a.t];
+    vec2& c2 = tex_coords[face.b.t];
+    vec2& c3 = tex_coords[face.c.t];
+
+    float x1 = v2.x - v1.x;
+    float x2 = v3.x - v1.x;
+
+    float y1 = v2.y - v1.y;
+    float y2 = v3.y - v1.y;
+
+    float z1 = v2.z - v1.z;
+    float z2 = v3.z - v1.z;
+
+    float s1 = c2.x - c1.x;
+    float s2 = c3.x - c1.x;
+
+    float t1 = c2.y - c1.y;
+    float t2 = c3.y - c1.y;
+
+    float r = 1.0f / (s1 * t2 - s2 * t1);
+
+    vec3 sdir((t2 * x1 - t1 * x2) * r, 
+              (t2 * y1 - t1 * y2) * r,
+              (t2 * z1 - t1 * z2) * r);
+
+    vec3 tdir((s1 * x2 - s2 * x1) * r, 
+              (s1 * y2 - s2 * y1) * r,
+              (s1 * z2 - s2 * z1) * r);
+
+    tan1[i1] += sdir;
+    tan1[i2] += sdir;
+    tan1[i3] += sdir;
+
+    tan2[i1] += tdir;
+    tan2[i2] += tdir;
+    tan2[i3] += tdir;
+  }
+
+  for(size_t i = 0; i < vertices.size(); ++i) {
+    const vec3& n = normalized(normals[i]);
+    const vec3& t = tan1[i];
+    vec3 tangent = normalized(t - n * dot(n, t));
+    float w = (dot(cross(n, t), tan2[i]) < 0.0f) ? -1.0f : 1.0f;
+    tangents[i].set(tangent.x, tangent.y, tangent.z, w);
+  }
+
+  delete[] tan1;
+  tan1 = NULL;
+  tan2 = NULL;
+
+} // OBJ::calculateTangents
 
 /*
   Painter
