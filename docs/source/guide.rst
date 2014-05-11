@@ -97,8 +97,12 @@ ROXLU_USE_AUDIO
   - pthread
   - dl
   - asound
+  - z
+  - vorbis
+  - vorbisenc
+  - FLAC
+  - ogg
      
-
 .. _libcurl: http://curl.haxx.se/libcurl/
 .. _libpng: http://www.libpng.org/pub/png/libpng.html
 .. _libjpeg: http://libjpeg.sourceforge.net/
