@@ -2539,7 +2539,8 @@ extern bool rx_file_exists(std::string filepath) {
     return false;
   }
 #else
-#  error Need to implement rx_file_exists on linux
+  struct stat buffer;   
+  return (stat(filepath.c_str(), &buffer) == 0);
 #endif
 
   return true;
