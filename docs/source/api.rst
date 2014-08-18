@@ -293,7 +293,7 @@ Image utils
        int channels = 0;
        unsigned char* pix = NULL;
 
-       if(rx_load_png("test.png", pix, w, h, channels) == false) {
+       if(rx_load_png("test.png", &pix, w, h, channels) == false) {
           printf("Error: cannot load the png.\n");
           ::exit(EXIT_FAILURE)
        }
