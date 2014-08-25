@@ -43,6 +43,7 @@ Overview
   - :cpp:func:`rx_get_hour()`
   - :cpp:func:`rx_get_minute()`
   - :cpp:func:`rx_get_time_string()`
+  - :cpp:func:`rx_get_date_string()`
 
 *Image Utils*
   - :cpp:func:`rx_save_png()`
@@ -282,18 +283,22 @@ Image utils
    :returns: boolean true on success, else false.
 
 
-.. cpp:function:: bool rx_load_png(std::string file, unsigned char** pix, int& w, int& h, int& nchannels)
+.. cpp:function:: bool rx_load_png(std::string file, unsigned char** pix, int& w, int& h, int& nchannels, int* allocated = NULL)
 
    Load a PNG file from the given filepath and create a pixel buffer, set width, height and nchannels.
-   
+   See https://gist.github.com/roxlu/9b9d555cf784385d67ba for examples on how to load using the same memory buffer.
+
    ::
 
        int w = 0;
        int h = 0;    
        int channels = 0;
        unsigned char* pix = NULL;
+       int allocated = 0; /* when given to rx_load_png, it should contain the number of bytes in `pix`, it will try to reuse or reallocate the pix buffer. */
+       int bytes_in_image = 0;
 
-       if(rx_load_png("test.png", &pix, w, h, channels) == false) {
+       bytes_in_image = rx_load_png("test.png", &pix, w, h, channels, &allocated); 
+       if (bytes_in_image < 0) {
           printf("Error: cannot load the png.\n");
           ::exit(EXIT_FAILURE)
        }
@@ -301,6 +306,8 @@ Image utils
        printf("Width: %d\n", w);
        printf("Height: %d\n", h);
        printf("Color Channels: %d\n", channels);
+       printf("Bytes in buffer: %d\n", bytes_in_image);
+
 
 
    :param string: ``file`` Load the png from this filepath.
@@ -308,18 +315,21 @@ Image utils
    :param int&: ``w`` (out) Reference to the width result. We will set the width value of the loaded image to ``w``.
    :param int&: ``h`` (out) Reference to the height result. We will set the height value of the loaded image to ``h``.
    :param int&: ``nchannels`` (out) The number of color channels in the loaded png.
+   :param int*: ``allocated`` (out,in) The number of bytes in the ``pix`` parameter. When given this must hold the correct value of the buffer size. We will try to reuse or reallocate the buffer. The ``allocated`` param may be 0 (it will just allocate a new buffer then.)             
    :returns: true on success, else false
 
 
-.. cpp:function:: bool rx_load_jpg(std::string file, unsigned char** pix, int& w, int& height, int& nchannels)
+.. cpp:function:: bool rx_load_jpg(std::string file, unsigned char** pix, int& w, int& height, int& nchannels, int* allocated)
 
    Loads a JPG file, see ``rx_load_png`` for an example as the function works the same, but only loads a JPG.
+   See https://gist.github.com/roxlu/9b9d555cf784385d67ba for examples on how to load using the same memory buffer.
 
    :param string: ``file`` Load the jpg from this filepath.
    :param unsigned char*: ``pix`` (out) We will allocate a ``unsigned char`` buffer for you; you need to delete this buffer yourself!
    :param int&: ``w`` (out) Reference to the width result. We will set the width value of the loaded image to ``w``.
    :param int&: ``h`` (out) Reference to the height result. We will set the height value of the loaded image to ``h``.
    :param int&: ``nchannels`` (out) The number of color channels in the loaded jpg.
+   :param int*: ``allocated`` (out,in) The number of bytes in the ``pix`` parameter. When given this must hold the correct value of the buffer size. We will try to reuse or reallocate the buffer. The ``allocated`` param may be 0 (it will just allocate a new buffer then.)             
    :returns: true on success, else false
 
 .. cpp:function:: bool rx_save_jpg(std::string file, unsigned char* pix, int width, int height, int nchannels, int quality = 80, bool flip = false, J_COLOR_SPACE colorSpace, J_DCT_METHOD dctMethod = JDCT_FASTEST)

@@ -40,21 +40,22 @@
   #define ROXLU_USE_FONT             - to make the PixelFont font available
   #define ROXLU_USE_AUDIO            - to use AudioPlayer for simple 44100,2-channel audio playback (need libcubeb)
   #define ROXLU_USE_CURL             - enable some curl helpers
+  #define ROXLU_USE_LOG              - use the logging features
 
 
   OPENGL - define `ROXLU_USE_OPENGL` before including
   ===================================================================================
   rx_create_shader(GL_VERTEX_SHADER, source_char_p);                        - create a shader, pass type
   rx_create_shader_from_file(GL_VERTEX_SHADER, path);                       - create a shader from a file, give a full path, returns -1 on error
-  rx_create_program(vert, frag, boolLink);                                  - create a program - DOES NOT LINK
+  rx_create_program(vert, frag, link);                                      - create a program, linkes when link == true 
   rx_create_program_with_attribs(vert, frag, 2, attr);                      - create a program with attribs + LINKS THE PROGRAM
   rx_print_shader_link_info(prog)                                           - print the program link info
   rx_print_shader_compile_info(vert)                                        - print the shader compile info
   rx_create_texture(filepath)                                               - loads a png and creates a texture (only when png is enabled)  
   rx_get_uniform_location(prog, name)                                       - returns the location of the uniform or returns -1 and logs something in debug mode
-  rx_uniform_1i(prog, name, value)                                          - set a 1i value
-  rx_uniform_1f(prog, name, value)                                          - set a 1f value
-  rx_uniform_mat4fv(prog, name, count, trans, ptr)                          - set a mat4fv
+  rx_uniform_1i(prog, name, value)                                          - set a 1i value - make sure to activate the shader before calling, e.g. glUseProgram(prog)
+  rx_uniform_1f(prog, name, value)                                          - set a 1f value - make sure to activate the shader before calling, e.g. glUseProgram(prog)
+  rx_uniform_mat4fv(prog, name, count, trans, ptr)                          - set a mat4fv - make sure to activate the shader before calling, e.g. glUseProgram(prog)
 
   rx_create_png_screenshot(filepath)                                        - create a png file from the current framebuffer (must have PNG enabled)
   rx_create_jpg_screenshot(filepath, quality)                               - create a jpg file from the current framebuffer (must have JPG enabled)
@@ -112,11 +113,13 @@
   font.color(r, g, b, a)                                                    - set the font color
   font.resize(w, h)                                                         - when the viewport size changes you must call this.
 
-  IMAGES - define `ROXLU_USE_PNG` before including
+  IMAGES - define `ROXLU_USE_PNG` before including -                        - see https://gist.github.com/roxlu/9b9d555cf784385d67ba for some loading examples
   ===================================================================================
   rx_save_png("filename.png", pixels, 640, 480, 3, flip);                   - writes a png using lib png, set flip = true if you want to flip horizontally
   rx_load_png("filepath.png", &pix, width, height, nchannels)               - load the pixels, width, height and nchannels for the given filepath. make sure to delete pix (which is unsigned char*)
-  rx_load_jpg("filepath.jpg", &pix, width, height, nchannels)               - loads an jpg file
+  rx_load_png("filepath.png", &pix, width, height, nchannels, &allocated)   - load the pixels, the allocated param should point to an integer that holds the number of bytes in the *pix buffer. It will try to reuse or reallocate this buffer. Returns number of bytes in image buffer.
+  rx_load_jpg("filepath.jpg", &pix, width, height, nchannels)               - loads an jpg file, allocates the buffer that you need to free, will return the number of bytes (int) 
+  rx_load_jpg("filepath.jpg", &pix, width, height, nchannels, &allocated)   - loads an jpg file. the allocated should point to an integer that holds the number of bytes in the *pix buffer. It will try to reuse this or reallocate the buffer if needed. this will return the number of allocated bytes
   rx_save_jpg("filepath.jpg", pixels, 640, 480, 3);                         - save a jpg file
 
   UTILS
@@ -136,6 +139,7 @@
   rx_create_path("/a/b/c")                                                 - creates the path. all subdirectories too)
   rx_norm_path("/some/path/")                                              - creates a normalized, cross platform path. always pass in forward slashes; on windows you'll get backslashes
   rx_get_files("/path/", "jpg")                                            - returns a std::vector<std::string> with the files found in the given dir which have the given extension.
+  rx_get_files("/path/", "*")                                              - returns all the files in the path. 
   rx_get_file_ext("/file/path.jpg")                                        - returns the extension of a file ("jpg", "gif", etc..)
                                                                            
   rx_split("string", '/')                                                  - splits a string on the given character returning std::vector<std::string>
@@ -145,6 +149,7 @@
   rx_millis()                                                              - returns the elapsed millis since the first call as float, 1000 millis returns 1.0
   rx_strftime("%Y/%m%d/")                                                  - strftime wrapper
   rx_get_time_string()                                                     - get a unique string with the current date time: 2014.01.16_13.12_883  yyyy.mm.dd.hh.ss.iii (ii =  millis) 
+  rx_get_date_string()                                                     - get a unique string with the current date 2014.01.16 
   rx_get_year()                                                            - get the current year as int, e.g. 2014
   rx_get_month()                                                           - get the current month as int [00-11]
   rx_get_day()                                                             - get the day of the month [00-31]
@@ -161,6 +166,16 @@
   rx_hsv_to_rgb(hsv, float*)                                               - "", "" 
   rx_hsv_to_rgb(float,* float*)                                            - "", ""
  
+
+  LOG 
+  ===================================================================================
+  rx_log_init()                                                            - Initialize logging, creates a log file like: log-[date-string].log in the same directory of the executable. 
+  rx_log_disable_stdout()                                                  - Disable output to stdout
+  rx_log_enable_stdout()                                                   - Enable output to stdout
+  RX_VERBOSE("%s %s", "Hello", "world");                                   - Log a verbose message 
+  RX_WARNING("Warning, wrong input");                                      - Log a warning
+  RX_ERROR("Log an error: %s", strerror(errno));                           - Log an erorr.
+  
 
   MATH - define `ROXLU_USE_MATH` before including. 
   ===================================================================================
@@ -299,11 +314,17 @@
 #  include <stdint.h>
 #  include <time.h>
 #  if defined(ROXLU_USE_OPENGL)
-#    include <GLXW/glxw.h>
+//#    include <GLXW/glxw.h>
 #  endif
 #elif defined(__APPLE__)
 #  if defined(ROXLU_USE_OPENGL)
-#    include <OpenGL/gl3.h>
+//#    include <OpenGL/gl3.h>
+#  endif
+/* For JPEG 9a, we need to fix this */
+#  if defined(ROXLU_USE_JPG)
+#    define TRUE 1
+#    define FALSE 0
+#    include <jpeglib.h>
 #  endif
 #  include <libgen.h>                               /* dirname */
 #  include <CoreFoundation/CFRunLoop.h>
@@ -327,7 +348,7 @@
 #  include <sys/stat.h>
 #  include <stdarg.h>
 #  if defined(ROXLU_USE_OPENGL)
-#     include <GLXW/glxw.h>
+//#     include <GLXW/glxw.h>
 #  endif
 #  define MAX_PATH 4096
 #endif
@@ -414,6 +435,7 @@ extern uint64_t rx_hrtime();
 extern float rx_millis();
 extern std::string rx_strftime(const std::string fmt);
 extern std::string rx_get_time_string();
+extern std::string rx_get_date_string();
 extern int rx_get_year();
 extern int rx_get_month();
 extern int rx_get_day();
@@ -1394,7 +1416,7 @@ bool rx_download_file(std::string url, std::string filepath);
 #  ifndef ROXLU_USE_PNG_H
 #  define ROXLU_USE_PNG_H
 
-extern bool rx_load_png(std::string filepath, unsigned char** pixels, int& w, int& h, int& nchannels);
+extern int rx_load_png(std::string filepath, unsigned char** pixels, int& w, int& h, int& nchannels, int* allocated = NULL);
 extern bool rx_save_png(std::string filepath, unsigned char* pixels, int w, int h, int channels, bool flip);
 
 #  endif // ROXLU_USE_PNG_H
@@ -1412,11 +1434,11 @@ extern bool rx_save_png(std::string filepath, unsigned char* pixels, int w, int 
 #  define XMD_H
 #  include <jpeglib.h>
 #  undef XMD_H
-#else 
+#elif defined(__linux)
 #  include <jpeglib.h>
 #endif
 
-extern bool rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& height, int& nchannels);
+extern int rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& height, int& nchannels, int* allocated = NULL);
 extern bool rx_save_jpg(std::string filepath, unsigned char* pix, int width, int height, int nchannels, int quality = 80, bool flip = false, J_COLOR_SPACE colorSpace = JCS_RGB, J_DCT_METHOD dctMethod = JDCT_FASTEST);
 
 #  endif // ROXLU_USE_JPG_H
@@ -2452,6 +2474,62 @@ class AudioPlayer {                                                             
 #endif // defined(ROXLU_USE_AUDIO)
 
 
+// ------------------------------------------------------------------------------------
+//                              R O X L U _ U S E _ L O G
+// ------------------------------------------------------------------------------------
+#if defined(ROXLU_USE_LOG)
+#  ifndef ROXLU_USE_LOG_H
+#  define ROXLU_USE_LOG_H
+
+#define RX_LOG_LEVEL_ALL 4
+#define RX_LOG_LEVEL_ERROR  1
+#define RX_LOG_LEVEL_WARNING 2
+#define RX_LOG_LEVEL_VERBOSE 3
+
+#if defined(_MSC_VER)
+#  define RX_VERBOSE(fmt, ...) { rx_verbose(__LINE__, __FUNCSIG__, fmt, ##__VA_ARGS__); } 
+#  define RX_WARNING(fmt, ...) { rx_warning(__LINE__, __FUNCSIG__, fmt, ##__VA_ARGS__); } 
+#  define RX_ERROR(fmt, ...) { rx_error(__LINE__, __FUNCSIG__, fmt, ##__VA_ARGS__); } 
+#else                                                                             
+#  define RX_VERBOSE(fmt, ...) { rx_verbose(__LINE__, __PRETTY_FUNCTION__, fmt, ##__VA_ARGS__); } 
+#  define RX_WARNING(fmt, ...) { rx_warning(__LINE__, __PRETTY_FUNCTION__, fmt, ##__VA_ARGS__); } 
+#  define RX_ERROR(fmt, ...) { rx_error(__LINE__, __PRETTY_FUNCTION__, fmt, ##__VA_ARGS__); } 
+#endif
+
+/* --------------------------------------------------------------------------------- */
+
+int rx_log_init();
+void rx_log_disable_stdout();
+void rx_log_enable_stdout();
+void rx_verbose(int line, const char* function, const char* fmt, ...);
+void rx_warning(int line, const char* function, const char* fmt, ...);
+void rx_error(int line, const char* function, const char* fmt, ...);
+
+/* --------------------------------------------------------------------------------- */
+
+class Log {
+ public:
+  Log();
+  ~Log();
+  int open(std::string filepath);
+  void log(int level, int line, const char* function, const char* fmt, va_list args);
+
+ public:
+  bool write_to_stdout;
+
+ private:
+  std::string filepath;
+  std::ofstream ofs;
+};
+
+/* --------------------------------------------------------------------------------- */
+
+extern Log rx_log;
+
+#  endif // ROXLU_USE_LOG_H
+#endif // defined(ROXLU_USE_LOG) 
+
+
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //                          I M P L E M E N T A T I O N
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2757,6 +2835,7 @@ extern bool rx_create_path(std::string path) {
   return true;
 } // rx_create_path()
 
+/* using * for ext will return all images */
 extern std::vector<std::string> rx_get_files(std::string path, std::string ext) { 
   std::vector<std::string> result;
 #if !defined(_WIN32)
@@ -2767,7 +2846,7 @@ extern std::vector<std::string> rx_get_files(std::string path, std::string ext) 
       if(ent->d_type == DT_REG) {
         std::string file_path = path +"/" +ent->d_name;
 
-        if(ext.size()) {
+        if(ext != "*" && ext.size()) {
           std::string file_ext = rx_get_file_ext(file_path);
           if(file_ext != ext) {
             continue;
@@ -2910,6 +2989,10 @@ extern std::string rx_get_time_string() {
   ss << intpart;
   ss >> millis_str;
   return rx_strftime("%Y.%m.%d_%H.%M.%S_") +millis_str;
+}
+
+extern std::string rx_get_date_string() {
+  return rx_strftime("%Y.%m.%d");
 }
 
 extern int rx_get_year() {
@@ -3110,7 +3193,25 @@ extern void rx_hsv_to_rgb(float* hsv, float* rgb) {
 
 #if defined(ROXLU_USE_JPG) && defined(ROXLU_IMPLEMENTATION)
 
-bool rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& height, int& nchannels) {
+/*
+
+  @param std::string filepath      - The file to laod
+  @param unsigned char** pix       - A reference to the buffer that will be set to the 
+                                     memory we allocate OR that we will reallocate (if needed).
+                                     We will only reallocate when the *allocated parameter is
+                                     passed. 
+  @param int& width                - Will be set to the width of the image.
+  @param int& height               - Will be set to the height of the image
+  @param int& nchannels            - Will be set to the number of color channels in the image
+  @param int* allocated (NULL)     - Can be NULL, if not it must be set to the number of bytes in *pix.
+                                     When the number of allocated bytes is less then what we need, we will
+                                     reallocate the buffer.   
+  @return int                      - The number of bytes of the image buffer (doesn't have to be the same 
+                                     as the number of bytes that was previously allocated!).
+                                   - on error we return a negative value.
+
+ */
+int rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& height, int& nchannels, int* allocated) {
   
   struct jpeg_error_mgr jerr;
   struct jpeg_decompress_struct cinfo;
@@ -3119,10 +3220,11 @@ bool rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& hei
   int stride = 0;
   int num_bytes = 0;
   unsigned char* pixels = NULL;
+  unsigned char* tmp = NULL;
   
   if( (fp = fopen(filepath.c_str(), "rb")) == NULL ) {
     printf("Error: cannot load %s\n", filepath.c_str());
-    return false;
+    return -1;
   }
 
   cinfo.err = jpeg_std_error(&jerr);
@@ -3138,13 +3240,44 @@ bool rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& hei
   height = cinfo.output_height;
   num_bytes = width * height * nchannels;
 
-  pixels = new unsigned char[num_bytes];
+  /* Reallocate when a buffer size is given */
+  if (NULL != allocated) {
+    if (0 == *allocated) {
+      /* not allocated yet */
+      pixels = (unsigned char*)malloc(num_bytes);
+      if (pixels) {
+        *allocated = num_bytes;
+      }
+      else {
+        printf("Error: cannot allocate a buffer for the jpg.\n");
+      }
+    }
+    else if (num_bytes > *allocated) {
+      /* already allocated, try to reallocate if necessary */
+      tmp = (unsigned char*)realloc(*pix, num_bytes);
+      if (NULL == tmp) {
+        printf("Error: cannot reallocate the pixel buffer for the jpg.");
+        pixels = NULL;
+      }
+      else {
+        pixels = tmp;
+        *allocated = num_bytes;
+      }
+    }
+    else {
+      pixels = *pix;
+    }
+  }
+  else {
+     pixels = new unsigned char[num_bytes];
+  }
+
   if(!pixels) {
     printf("Error: cannot allocate pixel buffer for jpg.\n");
     jpeg_finish_decompress(&cinfo);
     jpeg_destroy_decompress(&cinfo);
     fclose(fp);
-    return false;
+    return -1;
   }
 
   size_t dest_row = 0;
@@ -3159,7 +3292,7 @@ bool rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& hei
   jpeg_destroy_decompress(&cinfo);
   fclose(fp);
   *pix = pixels;
-  return true;
+  return num_bytes;
 }
 
 bool rx_save_jpg(std::string filepath, unsigned char* pix, int width, int height, int nchannels, int quality, bool flip, J_COLOR_SPACE colorSpace, J_DCT_METHOD dctMethod) {
@@ -3365,21 +3498,42 @@ extern bool rx_save_png(std::string filepath,
   
   return true;
 }
-  
-extern bool rx_load_png(std::string filepath, 
+
+/*
+
+  @param std::string filepath      - The file to laod
+  @param unsigned char** pix       - A reference to the buffer that will be set to the 
+                                     memory we allocate OR that we will reallocate (if needed).
+                                     We will only reallocate when the *allocated parameter is
+                                     passed. 
+  @param int& width                - Will be set to the width of the image.
+  @param int& height               - Will be set to the height of the image
+  @param int& nchannels            - Will be set to the number of color channels in the image
+  @param int* allocated (NULL)     - Can be NULL, if not it must be set to the number of bytes in *pix.
+                                     When the number of allocated bytes is less then what we need, we will
+                                     reallocate the buffer.   
+
+  @return int                      - The number of bytes of the image buffer (doesn't have to be the same 
+                                     as the number of bytes that was previously allocated!).
+                                   - on error we return a negative value.
+
+ */  
+extern int rx_load_png(std::string filepath, 
                         unsigned char** pixels,
                         int& width,
                         int& height,
-                        int& nchannels)
+                        int& nchannels, 
+                        int* allocated)
 {
   png_structp png_ptr;
   png_infop info_ptr; 
-  
+  unsigned char* tmp = NULL;
+
   FILE* fp = fopen(filepath.c_str(), "rb");
   if(!fp) {
     printf("Error: cannot load the png file: %s\n", filepath.c_str());
     fp = NULL;
-    return false;
+    return -1;
   }
   
   unsigned char sig[8];
@@ -3389,14 +3543,14 @@ extern bool rx_load_png(std::string filepath,
     printf("Error: invalid png signature (not enough bytes read) in: %s.\n", filepath.c_str());
     fclose(fp);
     fp = NULL;
-    return  false;
+    return  -2;
   }
   
   if(!png_check_sig(sig, 8)) {
     printf("Error: invalid png signature (wrong siganture) in: %s.\n", filepath.c_str());
     fclose(fp);
     fp = NULL;
-    return false;
+    return -3;
   }
     
   png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
@@ -3404,7 +3558,7 @@ extern bool rx_load_png(std::string filepath,
     printf("Error: cannot create png read struct: %s\n", filepath.c_str());
     fclose(fp);
     fp = NULL;
-    return false;
+    return -4;
   }
   
   info_ptr = png_create_info_struct(png_ptr);
@@ -3413,7 +3567,7 @@ extern bool rx_load_png(std::string filepath,
     printf("Error: cannot create png info struct for: %s\n", filepath.c_str());
     fclose(fp);
     fp = NULL;
-    return false;
+    return -5;
   }
   
 #if !defined(_WIN32)
@@ -3421,7 +3575,7 @@ extern bool rx_load_png(std::string filepath,
     png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
     fclose(fp);
     fp = NULL;
-    return false;
+    return -6;
   }
 #endif
   
@@ -3443,7 +3597,7 @@ extern bool rx_load_png(std::string filepath,
     png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
     fclose(fp);
     fp = NULL;
-    return false;
+    return -7;
   }
   
   // @TODO - add option to allow input colors/gray values to be not converted
@@ -3471,16 +3625,51 @@ extern bool rx_load_png(std::string filepath,
   
   stride = width * bit_depth * nchannels / 8;  
   num_bytes = width * height * bit_depth * nchannels / 8;
+
+  /* Reallocate when a buffer size is given */
+  unsigned char* pixbuf = NULL;
+  if (NULL != allocated) {
+    if (0 == *allocated) {
+      /* not allocated yet */
+      *pixels = (unsigned char*)malloc(num_bytes);
+      if (*pixels) {
+        *allocated = num_bytes;
+        pixbuf = *pixels;
+      }
+      else {
+        printf("Error: cannot allocate buffer for png image, %d bytes.\n", num_bytes);
+      }
+    }
+    else if (num_bytes > *allocated) {
+      /* already allocated, try to reallocate if necessary */
+      tmp = (unsigned char*)realloc(*pixels, num_bytes);
+      if (NULL == tmp) {
+        printf("Error: cannot reallocate the pixel buffer for the jpg.");
+      }
+      else {
+        *pixels = tmp;
+        *allocated = num_bytes;
+        pixbuf = *pixels;
+      }
+    }
+    else {
+      pixbuf = *pixels;
+    }
+  }
+  else {
+     pixbuf = new unsigned char[num_bytes];
+  }
   
-  *pixels = new unsigned char[num_bytes];
-  if(!pixels) {
+  if(!pixbuf) {
     printf("Error: image is to big: %s\n", filepath.c_str());
     png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
     fclose(fp);
     fp = NULL;
-    pixels = NULL;
-    return false;
+    return -8;
   }
+
+   /* set the outgoing pixel buffer. */
+  *pixels = pixbuf;
   
   png_bytep* row_ptrs = new png_bytep[height];
   if(!row_ptrs) {
@@ -3488,9 +3677,14 @@ extern bool rx_load_png(std::string filepath,
     png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
     fclose(fp);
     fp = NULL;
+    
+    /* free allocations */
     delete[] *pixels;
-    pixels = 0;
-    return false;
+    *pixels = NULL;
+    if (NULL != allocated) {
+      *allocated = 0;
+    }
+    return -9;
   }
   
   for(size_t i = 0; i < height; ++i) {
@@ -3503,7 +3697,7 @@ extern bool rx_load_png(std::string filepath,
   row_ptrs = NULL;
   png_destroy_read_struct(&png_ptr, &info_ptr, 0);
   fclose(fp);
-  return true;
+  return num_bytes;
 }
 
 #endif //  defined(ROXLU_USE_PNG) && defined(ROXLU_IMPLEMENATION)
@@ -4960,5 +5154,126 @@ void audioplayer_state_cb(cubeb_stream* stm, void* user, cubeb_state state) {
 }
 
 #endif //  defined(ROXLU_USE_AUDIO) && defined(ROXLU_IMPLEMENTATION)
+
+
+// ====================================================================================
+//                              R O X L U _ U S E _ M A T H
+// ====================================================================================
+#if defined(ROXLU_USE_LOG) && defined(ROXLU_IMPLEMENTATION)
+
+/* --------------------------------------------------------------------------------- */
+
+Log rx_log;
+
+/* --------------------------------------------------------------------------------- */
+
+Log::Log() 
+  :write_to_stdout(true)
+{
+}
+
+Log::~Log() {
+  if (ofs.is_open()) {
+    ofs.close();
+  }
+}
+
+int Log::open(std::string filep) {
+
+  if (0 != filepath.size()) {
+    printf("Error: trying to open the log file but it's already open? Calling rx_log_init() twice?\n");
+    return -1;
+  }
+
+  filepath = filep;
+
+  if (0 == filepath.size()) {
+    printf("Error: cannot open the log filepath because the string is empty.\n");
+    return -2;
+  }
+
+  ofs.open(filepath.c_str(), std::ios::out | std::ios::app);
+  if (!ofs.is_open()) {
+    printf("Error: cannot open the log file. No permission? %s\n", filepath.c_str());
+    return -3;
+  }
+
+  return 0;
+}
+
+void Log::log(int level, int line, const char* function, const char* fmt, va_list args) {
+
+  //  std::stringstream ss;
+  static char buffer[1024 * 8]; /* should be big enough ;-) */
+  std::string slevel;
+
+  if (false == ofs.is_open()) {
+    printf("Error: cannot log because the file hasn't been opened. Did you call rx_log_init()?\n");
+    return;
+  }
+
+  vsprintf(buffer, fmt, args);
+
+  ofs << rx_get_time_string() << " " ;
+
+  if (level == RX_LOG_LEVEL_VERBOSE) {
+    slevel = " verbose   ";
+    ofs << slevel;
+  }
+  else if (level == RX_LOG_LEVEL_WARNING) {
+    slevel =  " warning   ";
+    ofs << slevel;
+  }
+  else if (level == RX_LOG_LEVEL_ERROR) {
+    slevel = " <<ERROR>> ";
+    ofs << slevel;
+  }
+
+  ofs << " [" << function << ":" << line << "] = " <<  buffer << "\n";
+
+  if (write_to_stdout) {
+    printf("%s:%s[%s:%d] = %s \n", rx_get_time_string().c_str(), slevel.c_str(), function, line, buffer);
+  }
+}
+
+
+/* --------------------------------------------------------------------------------- */
+int rx_log_init() {
+  return rx_log.open(rx_get_exe_path() + "log-" +rx_get_date_string() +".log");
+}
+
+void rx_log_disable_stdout() {
+  rx_log.write_to_stdout = false;
+}
+
+void rx_log_enable_stdout() {
+  rx_log.write_to_stdout = false;
+}
+
+void rx_verbose(int line, const char* function, const char* fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  rx_log.log(RX_LOG_LEVEL_VERBOSE, line, function, fmt, args);
+  va_end(args);
+}
+
+void rx_warning(int line, const char* function, const char* fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  rx_log.log(RX_LOG_LEVEL_WARNING, line, function, fmt, args);
+  va_end(args);
+}
+
+void rx_error(int line, const char* function, const char* fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  rx_log.log(RX_LOG_LEVEL_ERROR, line, function, fmt, args);
+  va_end(args);
+}
+
+/* --------------------------------------------------------------------------------- */
+
+#endif // defined(ROXLU_USE_LOG) && defined(ROXLU_IMPLEMENTATION)
+
 
 #undef ROXLU_IMPLEMENTATION
