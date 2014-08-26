@@ -128,6 +128,7 @@
   rx_to_int("10");                                                         - convert a string to integer
   rx_int_to_string(15);                                                    - convert an integer to string
   rx_float_to_string(5.5);                                                 - convert a float to string
+  rx_string_id(std::string& v);                                            - generate an mostly unique uint32_t id for the given string.                
                                                                            
   rx_get_exe_path();                                                       - returns the path to the exe 
   rx_read_file("filepath.txt");                                            - returns the contents of the filepath.
@@ -337,6 +338,7 @@
 #  include <unistd.h>                               /* sysconf */
 #  include <dirent.h>                               /* DIR */
 #  include <errno.h>                                /* errno */
+#  include <stdint.h>
 #elif defined(__linux)
 #  include <string.h>                               /* strlen() */
 #  include <dirent.h>                               /* stat() */
@@ -425,6 +427,7 @@ extern std::string rx_read_file(std::string filepath);
 extern std::string rx_string_replace(std::string, char from, char to);
 extern std::string rx_string_replace(std::string, std::string from, std::string to);
 extern int rx_to_int(const std::string& v);
+extern uint32_t rx_string_id(const std::string& v);
 extern float rx_to_float(const std::string& v);
 extern std::string rx_int_to_string(const int& v);
 extern std::string rx_float_to_string(const float& v);
@@ -3013,6 +3016,55 @@ extern int rx_get_hour() {
 
 extern int rx_get_minute() {
   return rx_to_int(rx_strftime("%M"));
+}
+
+extern uint32_t rx_string_id(const std::string& v) {
+  const char* data = v.c_str();
+  int len = v.size();
+  uint32_t hash = len, tmp;
+  int rem;
+  
+  if (len <= 0 || data == NULL) {
+    return 0;
+  }
+  
+  rem = len & 3;
+  len >>= 2;
+  
+  /* Main loop */
+  for (;len > 0; len--) {
+    hash  += get16bits (data);
+    tmp    = (get16bits (data+2) << 11) ^ hash;
+    hash   = (hash << 16) ^ tmp;
+    data  += 2*sizeof (uint16_t);
+    hash  += hash >> 11;
+  }
+  
+  /* Handle end cases */
+  switch (rem) {
+    case 3: hash += get16bits (data);
+      hash ^= hash << 16;
+      hash ^= data[sizeof (uint16_t)] << 18;
+      hash += hash >> 11;
+      break;
+    case 2: hash += get16bits (data);
+      hash ^= hash << 11;
+      hash += hash >> 17;
+      break;
+    case 1: hash += *data;
+      hash ^= hash << 10;
+      hash += hash >> 1;
+  }
+  
+  /* Force "avalanching" of final 127 bits */
+  hash ^= hash << 3;
+  hash += hash >> 5;
+  hash ^= hash << 4;
+  hash += hash >> 17;
+  hash ^= hash << 25;
+  hash += hash >> 6;
+  
+  return hash;
 }
 
 #endif // defined(ROXLU_IMPLEMENTATION)
