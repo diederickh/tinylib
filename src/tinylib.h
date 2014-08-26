@@ -5217,11 +5217,11 @@ void Log::log(int level, int line, const char* function, const char* fmt, va_lis
   ofs << rx_get_time_string() << " " ;
 
   if (level == RX_LOG_LEVEL_VERBOSE) {
-    slevel = " verbose   ";
+    slevel = " verbose ";
     ofs << slevel;
   }
   else if (level == RX_LOG_LEVEL_WARNING) {
-    slevel =  " warning   ";
+    slevel =  " warning ";
     ofs << slevel;
   }
   else if (level == RX_LOG_LEVEL_ERROR) {
