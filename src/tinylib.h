@@ -115,12 +115,12 @@
 
   IMAGES - define `ROXLU_USE_PNG` before including -                        - see https://gist.github.com/roxlu/9b9d555cf784385d67ba for some loading examples
   ===================================================================================
-  rx_save_png("filename.png", pixels, 640, 480, 3, flip);                   - writes a png using lib png, set flip = true if you want to flip horizontally
-  rx_load_png("filepath.png", &pix, width, height, nchannels)               - load the pixels, width, height and nchannels for the given filepath. make sure to delete pix (which is unsigned char*)
-  rx_load_png("filepath.png", &pix, width, height, nchannels, &allocated)   - load the pixels, the allocated param should point to an integer that holds the number of bytes in the *pix buffer. It will try to reuse or reallocate this buffer. Returns number of bytes in image buffer.
-  rx_load_jpg("filepath.jpg", &pix, width, height, nchannels)               - loads an jpg file, allocates the buffer that you need to free, will return the number of bytes (int) 
-  rx_load_jpg("filepath.jpg", &pix, width, height, nchannels, &allocated)   - loads an jpg file. the allocated should point to an integer that holds the number of bytes in the *pix buffer. It will try to reuse this or reallocate the buffer if needed. this will return the number of allocated bytes
-  rx_save_jpg("filepath.jpg", pixels, 640, 480, 3);                         - save a jpg file
+  bool rx_save_png("filename.png", pixels, 640, 480, 3, flip);                  - writes a png using lib png, set flip = true if you want to flip horizontally
+  int rx_load_png("filepath.png", &pix, width, height, nchannels)               - load the pixels, width, height and nchannels for the given filepath. make sure to delete pix (which is unsigned char*)
+  int rx_load_png("filepath.png", &pix, width, height, nchannels, &allocated)   - load the pixels, the allocated param should point to an integer that holds the number of bytes in the *pix buffer. It will try to reuse or reallocate this buffer. Returns number of bytes in image buffer.
+  int rx_load_jpg("filepath.jpg", &pix, width, height, nchannels)               - loads an jpg file, allocates the buffer that you need to free, will return the number of bytes (int) 
+  int rx_load_jpg("filepath.jpg", &pix, width, height, nchannels, &allocated)   - loads an jpg file. the allocated should point to an integer that holds the number of bytes in the *pix buffer. It will try to reuse this or reallocate the buffer if needed. this will return the number of allocated bytes
+  bool rx_save_jpg("filepath.jpg", pixels, 640, 480, 3);                        - save a jpg file
 
   UTILS
   ===================================================================================
@@ -135,6 +135,7 @@
   rx_to_data_path("filename.txt")                                          - convert the given filename to the data dir
   rx_is_dir("path")                                                        - returns true when the path is a dir
   rx_strip_filename("/path/filename")                                      - removes the filename from the given path
+  rx_strip_file_ext("/path/filename")                                      - removes the extension from the given filename, including the dot. e.g. image.jpg becomes "image"
   rx_strip_dir("/path/filename")                                           - removes the path from the given path leaving only the filename
   rx_create_dir("/path/to")                                                - creates the given directory
   rx_create_path("/a/b/c")                                                 - creates the path. all subdirectories too)
@@ -415,6 +416,7 @@ extern std::string rx_to_data_path(const std::string filename);
 extern bool rx_is_dir(std::string filepath);
 extern bool rx_file_exists(std::string filepath);
 extern std::string rx_strip_filename(std::string path);
+extern std::string rx_strip_file_ext(std::string path);
 extern std::string rx_strip_dir(std::string path);
 extern bool rx_create_dir(std::string path);
 extern bool rx_create_path(std::string path);
@@ -2719,6 +2721,12 @@ extern std::string rx_strip_filename(std::string path) {
 #endif
 
   return directory;
+}
+
+extern std::string rx_strip_file_ext(std::string path) {
+  std::string ext = "." +rx_get_file_ext(path);
+  std::string result = rx_string_replace(path, ext, "");
+  return result;
 }
 
 extern std::string rx_strip_dir(std::string path) {
