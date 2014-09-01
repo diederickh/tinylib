@@ -22,6 +22,7 @@ Overview
 *File Utils*
   - :cpp:func:`rx_get_exe_path()`
   - :cpp:func:`rx_to_data_path()`
+  - :cpp:func:`rx_get_file_mtime()`
   - :cpp:func:`rx_is_dir()`
   - :cpp:func:`rx_file_exists()`
   - :cpp:func:`rx_strip_filename()`
@@ -108,6 +109,10 @@ File utils
    Returns a path to what we call a data path. A data path is a directory where you
    can store things like textures, shaders, fonts, etc. By default this will return 
    a path to your executable with ``data/``.
+
+.. cpp:function:: uint64_t rx_get_file_mtime(std::string filepath)
+
+   Returns the file modification time since unix epoch in nanoseconds.
 
 .. cpp:function:: bool rx_is_dir(std::string filepath)
    

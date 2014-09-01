@@ -115,12 +115,22 @@
 
   IMAGES - define `ROXLU_USE_PNG` before including -                        - see https://gist.github.com/roxlu/9b9d555cf784385d67ba for some loading examples
   ===================================================================================
-  bool rx_save_png("filename.png", pixels, 640, 480, 3, flip);                  - writes a png using lib png, set flip = true if you want to flip horizontally
-  int rx_load_png("filepath.png", &pix, width, height, nchannels)               - load the pixels, width, height and nchannels for the given filepath. make sure to delete pix (which is unsigned char*)
-  int rx_load_png("filepath.png", &pix, width, height, nchannels, &allocated)   - load the pixels, the allocated param should point to an integer that holds the number of bytes in the *pix buffer. It will try to reuse or reallocate this buffer. Returns number of bytes in image buffer.
-  int rx_load_jpg("filepath.jpg", &pix, width, height, nchannels)               - loads an jpg file, allocates the buffer that you need to free, will return the number of bytes (int) 
-  int rx_load_jpg("filepath.jpg", &pix, width, height, nchannels, &allocated)   - loads an jpg file. the allocated should point to an integer that holds the number of bytes in the *pix buffer. It will try to reuse this or reallocate the buffer if needed. this will return the number of allocated bytes
-  bool rx_save_jpg("filepath.jpg", pixels, 640, 480, 3);                        - save a jpg file
+
+  Both the jpg and png loaders can reallocate the given pixel buffer so that
+  it will be big enough to load the image. For this to work you need to pass 
+  the current capacity of the buffer and make sure that *pixels is not NULL.
+
+  RX_FLAG_LOAD_AS_RGBA
+     You can load a png and convert it directly to 4 channels, which helps you
+     when you want to upload pixels to the GPU using the optimal transfer path.
+     pass the flag, RX_FLAG_LOAD_AS_RGBA
+
+  bool rx_save_png("filename.png", pixels, 640, 480, 3, flip);                         - writes a png using lib png, set flip = true if you want to flip horizontally
+  int rx_load_png("filepath.png", &pix, width, height, nchannels)                      - load the pixels, width, height and nchannels for the given filepath. make sure to delete pix (which is unsigned char*)
+  int rx_load_png("filepath.png", &pix, width, height, nchannels, &allocated, flags)   - load the pixels, the allocated param should point to an integer that holds the number of bytes in the *pix buffer. It will try to reuse or reallocate this buffer. Returns number of bytes in image buffer. You can pass RX_FLAG_LOAD_AS_RGBA if you want to force the output as RGBA
+  int rx_load_jpg("filepath.jpg", &pix, width, height, nchannels)                      - loads an jpg file, allocates the buffer that you need to free, will return the number of bytes (int) 
+  int rx_load_jpg("filepath.jpg", &pix, width, height, nchannels, &allocated)          - loads an jpg file. the allocated should point to an integer that holds the number of bytes in the *pix buffer. It will try to reuse this or reallocate the buffer if needed. this will return the number of allocated bytes
+  bool rx_save_jpg("filepath.jpg", pixels, 640, 480, 3);                               - save a jpg file
 
   UTILS
   ===================================================================================
@@ -217,7 +227,7 @@
   mat4& mat4.scale(s)
   mat4& mat4.translate(x, y, z)
   mat4& mat4.translate(vec3 v)
-  mat4& mat4.ortho(l, r, b, t, n , f)
+  mat4& mat4.ortho(l, r, b, t, n , f)                                      - pm.ortho(0, w, h, 0, 0.0f, 100.0f);
   mat4& mat4.frustum(l, r, b, t, n, f)
   mat4& mat4.perspective(fov, aspect, near, far)                           - create a perspective projection matrix 
   mat4& mat4.lookat(eye, pos, up)
@@ -410,9 +420,14 @@
 #  define DX(i,j,w)((j)*(w))+(i)
 #endif
 
+
+#define RX_FLAG_NONE 0x0000              /* default flag */ 
+#define RX_FLAG_LOAD_AS_RGBA 0x0001      /* can be used by image loading functions to convert loaded data directory to RGBA. See the rx_load_png function. */
+
 /* file utils */
 extern std::string rx_get_exe_path();
 extern std::string rx_to_data_path(const std::string filename);
+extern uint64_t rx_get_file_mtime(std::string filepath);
 extern bool rx_is_dir(std::string filepath);
 extern bool rx_file_exists(std::string filepath);
 extern std::string rx_strip_filename(std::string path);
@@ -1421,7 +1436,7 @@ bool rx_download_file(std::string url, std::string filepath);
 #  ifndef ROXLU_USE_PNG_H
 #  define ROXLU_USE_PNG_H
 
-extern int rx_load_png(std::string filepath, unsigned char** pixels, int& w, int& h, int& nchannels, int* allocated = NULL);
+extern int rx_load_png(std::string filepath, unsigned char** pixels, int& w, int& h, int& nchannels, int* allocated = NULL, int flags = 0);
 extern bool rx_save_png(std::string filepath, unsigned char* pixels, int w, int h, int channels, bool flip);
 
 #  endif // ROXLU_USE_PNG_H
@@ -2692,6 +2707,16 @@ extern std::string rx_to_data_path(const std::string filename) {
   return exepath;
 }
 
+/* See http://stackoverflow.com/questions/4021479/getting-file-modification-time-on-unix-using-utime-in-c */
+/* returns the unix epoc time stamp in nano seconds */
+extern uint64_t rx_get_file_mtime(std::string filepath) {
+  struct stat statbuf;
+  if (stat(filepath.c_str(), &statbuf) == -1) {
+    return 0;
+  }
+  return statbuf.st_mtime * 1e6;
+}
+
 extern std::string rx_string_replace(std::string str, std::string from, std::string to) {
   size_t start_pos = str.find(from);
   if(start_pos == std::string::npos) {
@@ -3583,6 +3608,9 @@ extern bool rx_save_png(std::string filepath,
   @param int* allocated (NULL)     - Can be NULL, if not it must be set to the number of bytes in *pix.
                                      When the number of allocated bytes is less then what we need, we will
                                      reallocate the buffer.   
+  @param int flags                 - This allows you to tell the loader, to convert a e.g. RGB
+                                     png into a RGBA, wich may be handy if you need to upload
+                                     the pixels to the GPU.  
 
   @return int                      - The number of bytes of the image buffer (doesn't have to be the same 
                                      as the number of bytes that was previously allocated!).
@@ -3594,7 +3622,8 @@ extern int rx_load_png(std::string filepath,
                         int& width,
                         int& height,
                         int& nchannels, 
-                        int* allocated)
+                        int* allocated,
+                        int flags)
 {
   png_structp png_ptr;
   png_infop info_ptr; 
@@ -3687,13 +3716,32 @@ extern int rx_load_png(std::string filepath,
     }
     default:break;
   };
-    
+
   // When transparency is set convert it to a full alpha channel
   if(png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) {
     png_set_tRNS_to_alpha(png_ptr);
     nchannels += 1;
   }
-  
+
+  /* When flag is set to load as RGBA, we need to the info struct */
+  if ((flags & RX_FLAG_LOAD_AS_RGBA) == RX_FLAG_LOAD_AS_RGBA) {
+    if (color_type == PNG_COLOR_TYPE_RGB ||
+        color_type == PNG_COLOR_TYPE_GRAY || 
+        color_type == PNG_COLOR_TYPE_PALETTE)
+    {
+      png_set_filler(png_ptr, 0xFF, PNG_FILLER_AFTER);
+    }
+
+    if(color_type == PNG_COLOR_TYPE_GRAY ||
+       color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+    {
+      png_set_gray_to_rgb(png_ptr);
+    }
+
+    png_read_update_info(png_ptr, info_ptr);
+    nchannels = 4;
+  }
+
   stride = width * bit_depth * nchannels / 8;  
   num_bytes = width * height * bit_depth * nchannels / 8;
 
