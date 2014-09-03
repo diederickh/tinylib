@@ -2521,6 +2521,7 @@ class AudioPlayer {                                                             
 int rx_log_init();
 void rx_log_disable_stdout();
 void rx_log_enable_stdout();
+void rx_log_set_level(int level);
 void rx_verbose(int line, const char* function, const char* fmt, ...);
 void rx_warning(int line, const char* function, const char* fmt, ...);
 void rx_error(int line, const char* function, const char* fmt, ...);
@@ -2536,10 +2537,11 @@ class Log {
 
  public:
   bool write_to_stdout;
+  int level;                   /* what level we should log. */
 
  private:
-  std::string filepath;
-  std::ofstream ofs;
+  std::string filepath;        /* filepath where we save the log file. */
+  std::ofstream ofs;           /* the output file stream */
 };
 
 /* --------------------------------------------------------------------------------- */
@@ -5288,6 +5290,7 @@ Log rx_log;
 
 Log::Log() 
   :write_to_stdout(true)
+  ,level(RX_LOG_LEVEL_ALL)
 {
 }
 
@@ -5320,7 +5323,11 @@ int Log::open(std::string filep) {
   return 0;
 }
 
-void Log::log(int level, int line, const char* function, const char* fmt, va_list args) {
+void Log::log(int inlevel, int line, const char* function, const char* fmt, va_list args) {
+  
+  if (inlevel > level) {
+    return;
+  }
 
   //  std::stringstream ss;
   static char buffer[1024 * 8]; /* should be big enough ;-) */
@@ -5335,15 +5342,15 @@ void Log::log(int level, int line, const char* function, const char* fmt, va_lis
 
   ofs << rx_get_time_string() << " " ;
 
-  if (level == RX_LOG_LEVEL_VERBOSE) {
+  if (inlevel == RX_LOG_LEVEL_VERBOSE) {
     slevel = " verbose ";
     ofs << slevel;
   }
-  else if (level == RX_LOG_LEVEL_WARNING) {
+  else if (inlevel == RX_LOG_LEVEL_WARNING) {
     slevel =  " warning ";
     ofs << slevel;
   }
-  else if (level == RX_LOG_LEVEL_ERROR) {
+  else if (inlevel == RX_LOG_LEVEL_ERROR) {
     slevel = " <<ERROR>> ";
     ofs << slevel;
   }
@@ -5367,6 +5374,10 @@ void rx_log_disable_stdout() {
 
 void rx_log_enable_stdout() {
   rx_log.write_to_stdout = false;
+}
+
+void rx_log_set_level(int level) {
+  rx_log.level = level;
 }
 
 void rx_verbose(int line, const char* function, const char* fmt, ...) {
