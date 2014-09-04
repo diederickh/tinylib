@@ -184,6 +184,7 @@
   rx_log_init()                                                            - Initialize logging, creates a log file like: log-[date-string].log in the same directory of the executable. 
   rx_log_disable_stdout()                                                  - Disable output to stdout
   rx_log_enable_stdout()                                                   - Enable output to stdout
+  rx_log_set_level(int level)                                              - Set the log level, RX_LOG_LEVEL_{ALL, ERROR, WARNING, VERBOSE}
   RX_VERBOSE("%s %s", "Hello", "world");                                   - Log a verbose message 
   RX_WARNING("Warning, wrong input");                                      - Log a warning
   RX_ERROR("Log an error: %s", strerror(errno));                           - Log an erorr.
