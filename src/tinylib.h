@@ -181,7 +181,7 @@
 
   LOG 
   ===================================================================================
-  rx_log_init()                                                            - Initialize logging, creates a log file like: log-[date-string].log in the same directory of the executable. 
+  rx_log_init(std::string path = "")                                       - Initialize logging, creates a log file like: log-[date-string].log in the same directory of the executable when path is not given. 
   rx_log_disable_stdout()                                                  - Disable output to stdout
   rx_log_enable_stdout()                                                   - Enable output to stdout
   rx_log_set_level(int level)                                              - Set the log level, RX_LOG_LEVEL_{ALL, ERROR, WARNING, VERBOSE}
@@ -2519,7 +2519,7 @@ class AudioPlayer {                                                             
 
 /* --------------------------------------------------------------------------------- */
 
-int rx_log_init();
+int rx_log_init(std::string path = "");
 void rx_log_disable_stdout();
 void rx_log_enable_stdout();
 void rx_log_set_level(int level);
@@ -5361,12 +5361,28 @@ void Log::log(int inlevel, int line, const char* function, const char* fmt, va_l
   if (write_to_stdout) {
     printf("%s:%s[%s:%d] = %s \n", rx_get_time_string().c_str(), slevel.c_str(), function, line, buffer);
   }
+
+  ofs.flush();
 }
 
 
 /* --------------------------------------------------------------------------------- */
-int rx_log_init() {
-  return rx_log.open(rx_get_exe_path() + "log-" +rx_get_date_string() +".log");
+int rx_log_init(std::string path) {
+  std::string filepath = "";
+
+  if (0 == path.size()) {
+    filepath = rx_get_exe_path();
+  }
+  else {
+    if (false == rx_is_dir(path)) {
+      printf("Error: the given path for the log is invalid: %s\n", path.c_str());
+      return -1;
+    }
+    
+    filepath = path;
+  }
+
+  return rx_log.open(filepath +"/log-" +rx_get_date_string() +".log");
 }
 
 void rx_log_disable_stdout() {
