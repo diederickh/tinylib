@@ -328,6 +328,7 @@
 #  include <Shlwapi.h>
 #  include <stdint.h>
 #  include <time.h>
+#  include <sys/stat.h>                           /* _stat() */   
 #  if defined(ROXLU_USE_OPENGL)
 //#    include <GLXW/glxw.h>
 #  endif
@@ -2737,11 +2738,19 @@ extern std::string rx_to_data_path(const std::string filename) {
 /* See http://stackoverflow.com/questions/4021479/getting-file-modification-time-on-unix-using-utime-in-c */
 /* returns the unix epoc time stamp in nano seconds */
 extern uint64_t rx_get_file_mtime(std::string filepath) {
+#if defined(_WIN32)
+  struct _stat statbuf;
+  if (_stat(filepath.c_str(), &statbuf) == -1) {
+    return 0;
+  }
+  return statbuf.st_mtime * 1e6;
+#else  
   struct stat statbuf;
   if (stat(filepath.c_str(), &statbuf) == -1) {
     return 0;
   }
   return statbuf.st_mtime * 1e6;
+#endif
 }
 
 extern std::string rx_string_replace(std::string str, std::string from, std::string to) {
