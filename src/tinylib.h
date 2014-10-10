@@ -228,6 +228,8 @@
   mat4& mat4.scale(s)
   mat4& mat4.translate(x, y, z)
   mat4& mat4.translate(vec3 v)
+  mat4& mat4.position(vec3 v)
+  mat4& mat4.position(x, y, z)
   mat4& mat4.ortho(l, r, b, t, n , f)                                      - pm.ortho(0, w, h, 0, 0.0f, 100.0f);
   mat4& mat4.frustum(l, r, b, t, n, f)
   mat4& mat4.perspective(fov, aspect, near, far)                           - create a perspective projection matrix 
@@ -419,6 +421,10 @@
 
 #ifndef DX
 #  define DX(i,j,w)((j)*(w))+(i)
+#endif
+
+#ifndef IS_INSIDE /* x, y is top left corner. */
+#  define IS_INSIDE(mousex, mousey, x, y, w, h) ((mousex >= x) && (mousex <= (x+w)) && (mousey >= y) && (mousey <= (y+h)))
 #endif
 
 
@@ -764,6 +770,8 @@ class Matrix4 {
   Matrix4<T>& rotate(T rad, const Vec3<T>& v);
   Matrix4<T>& translate(T x, T y, T z);
   Matrix4<T>& translate(const Vec3<T>& v);
+  Matrix4<T>& position(const Vec3<T>& v);
+  Matrix4<T>& position(T x, T y, T z);
   Matrix4<T>& scale(T x, T y, T z);
   Matrix4<T>& scale(T s);
   Matrix4<T>& perspective(T fovDegrees, T aspect, T n, T f);
@@ -968,6 +976,22 @@ Matrix4<T>& Matrix4<T>::scale(T x, T y, T z) {
 template<class T>
 Matrix4<T>& Matrix4<T>::translate(const Vec3<T>& v) {
   return translate(v.x, v.y, v.z);
+}
+
+template<class T>
+Matrix4<T>& Matrix4<T>::position(const Vec3<T>& v) {
+  m[12] = v.x;
+  m[13] = v.y;
+  m[14] = v.z;
+  return *this;
+}
+
+template<class T>
+Matrix4<T>& Matrix4<T>::position(T x, T y, T z) {
+  m[12] = x;
+  m[13] = y;
+  m[14] = z;
+  return *this;
 }
 
 template<class T>
@@ -3695,7 +3719,7 @@ extern int rx_load_png(std::string filepath,
   width = png_get_image_width(png_ptr, info_ptr);
   height = png_get_image_height(png_ptr, info_ptr);
   nchannels = png_get_channels(png_ptr, info_ptr);
-    
+
   if(width == 0 || height == 0) {
     png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
     fclose(fp);
@@ -3704,6 +3728,7 @@ extern int rx_load_png(std::string filepath,
   }
   
   // @TODO - add option to allow input colors/gray values to be not converted
+
   switch(color_type) {
     case PNG_COLOR_TYPE_PALETTE: {
       png_set_palette_to_rgb(png_ptr);
@@ -3717,7 +3742,10 @@ extern int rx_load_png(std::string filepath,
       }
       break;
     }
-    default:break;
+    default: {
+      /*printf("Warning: unsupported color type: %d.\n", color_type);*/
+      break;
+    }
   };
 
   // When transparency is set convert it to a full alpha channel
@@ -3727,6 +3755,7 @@ extern int rx_load_png(std::string filepath,
   }
 
   /* When flag is set to load as RGBA, we need to the info struct */
+
   if ((flags & RX_FLAG_LOAD_AS_RGBA) == RX_FLAG_LOAD_AS_RGBA) {
     if (color_type == PNG_COLOR_TYPE_RGB ||
         color_type == PNG_COLOR_TYPE_GRAY || 
@@ -3742,6 +3771,7 @@ extern int rx_load_png(std::string filepath,
     }
 
     png_read_update_info(png_ptr, info_ptr);
+
     nchannels = 4;
   }
 
@@ -3808,7 +3838,7 @@ extern int rx_load_png(std::string filepath,
     }
     return -9;
   }
-  
+
   for(size_t i = 0; i < height; ++i) {
     row_ptrs[i] = (png_bytep)(*pixels) +(i * stride);
   }
