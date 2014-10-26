@@ -2337,6 +2337,8 @@ class Painter {
   void end();                                                                       /* end the current batch; this will flush the added vertices into the correct context */
 
   void color(float r = 1.0, float g = 1.0, float b = 1.0, float a = 1.0);           /* set the color of lines, circles, rectangles */
+  void rgba(int r = 255, int g = 255, int b = 255, int a = 255);                    /* set the color of lines, circles, rectangles, etc.. using RGB values in range [0,255] */
+  void hex(std::string hexstr);                                                     /* set the color of lines, circles, rectangles, etc.. using a HEX string, e.g. `484A47` for rgb, or 484A47FF for rgba. */
   void fill();                                                                      /* enable fill mode */
   void nofill();                                                                    /* disable fill mode */
   void resize(int w, int h);                                                        /* whenever your viewport changes, call this so we can recalculate the projection matrix */
@@ -4475,6 +4477,40 @@ void Painter::color(float r, float g, float b, float a) {
   col[1] = g;
   col[2] = b;
   col[3] = a;
+}
+
+void Painter::rgba(int r, int g, int b, int a) {
+  float inv = 1.0f / 255.0f;
+  col[0] = r * inv;
+  col[1] = g * inv;
+  col[2] = b * inv;
+  col[3] = a * inv;
+}
+
+/* Convert hex string to color, e.g. hex("FF00CCFF") or hex("FFCC00"). */
+void Painter::hex(std::string str) {
+
+  unsigned int h;
+  std::stringstream ss;
+  ss << std::hex << str;
+  ss >> h;
+
+  if (str.size() == 6) {
+    int r = (h >> 16) & 0xFF;
+    int g = (h >> 8) & 0xFF;
+    int b = (h) & 0xFF;
+    rgba(r, g, b);
+  }
+  else if (str.size() == 8) {
+    int r = (h >> 24) & 0xFF;
+    int g = (h >> 16) & 0xFF;
+    int b = (h >> 8) & 0xFF;
+    int a = (h) & 0xFF;
+    rgba(r, g, b, a);
+  }
+  else {
+    printf("error: invalid hex str.\n");
+  }
 }
 
 void Painter::draw() {
