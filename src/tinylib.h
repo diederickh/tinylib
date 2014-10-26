@@ -329,6 +329,8 @@
 #  include <stdint.h>
 #  include <time.h>
 #  include <sys/stat.h>                           /* _stat() */   
+#  include <tchar.h>                              /* TEXT() */
+#  include <strsafe.h>                            /* TEXT() */
 #  if defined(ROXLU_USE_OPENGL)
 //#    include <GLXW/glxw.h>
 #  endif
@@ -2731,7 +2733,7 @@ extern std::string rx_to_data_path(const std::string filename) {
     exepath += filename;
   }
 #else 
-  exepath += "data/" +filename;
+  exepath += "data\\" +filename;
 #endif  
 
   return exepath;
@@ -2933,7 +2935,35 @@ extern std::vector<std::string> rx_get_files(std::string path, std::string ext) 
     closedir(dir);
   }
 #else
-  printf("WARNING: We have not yet implemented rx_get_files on windows.\n");
+
+  char search_path[MAX_PATH] = { 0 };
+  WIN32_FIND_DATA ffd;
+  DWORD err;
+  HANDLE handle;
+
+  if (ext.size()) {
+    sprintf(search_path, "%s\\*", path.c_str());
+  }
+  else {
+    sprintf(search_path, "%s\\*.%s", path.c_str(), ext.c_str());
+  }
+
+  handle = FindFirstFile(search_path, &ffd);
+  if (INVALID_HANDLE_VALUE == handle) {
+    err = GetLastError();
+    printf("error: cannot get directory listing, error code: %u\n", err);
+  }
+  else {
+    do {
+      if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        continue;
+      }
+      std::string file_path = path +"/" +ffd.cFileName;
+      result.push_back(file_path);
+    } while (FindNextFile(handle, &ffd) != 0);
+  }
+  CloseHandle(handle);
+
 #endif
   return result;
 } // rx_get_files()
