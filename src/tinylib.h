@@ -43,6 +43,21 @@
   #define ROXLU_USE_LOG              - use the logging features
 
 
+  MACROS
+  ===================================================================================
+  HALF_PI
+  PI
+  TWO_PI
+  FOUR_PI
+  DEG_TO_RAD
+  RAD_TO_DEG
+  LOWEST(a, b)
+  HIEGHEST(a, b)
+  CLAMP(val, min, max)
+  ABS(x)
+  DX(i, j, w)
+  IS_INSIDE(mousex, mousey, x, y, w, h)
+  
   OPENGL - define `ROXLU_USE_OPENGL` before including
   ===================================================================================
   rx_create_shader(GL_VERTEX_SHADER, source_char_p);                        - create a shader, pass type
@@ -612,7 +627,7 @@ class Vec3 {
 
 template<class T> inline Vec3<T>::Vec3() : x(), y(), z() {}
 template<class T> inline Vec3<T>::Vec3(T x, T y, T z) : x(x), y(y), z(z) {}
-template<class T> inline Vec3<T>::Vec3(const Vec3<T>& o) : x(o.x), y(o.y), z(o.z) {}
+template<class T> inline Vec3<T>::Vec3(const Vec3<T>& o) : x(o.x), y(o.y), z(o.z) { }
 template<class T> inline Vec3<T>::Vec3(T f) : x(f), y(f), z(f) {}
 template<class T> inline void Vec3<T>::set(const float xv, const float yv, const float zv) { x = xv; y = yv; z = zv; }
 template<class T> inline T* Vec3<T>::ptr() { return &x; }
