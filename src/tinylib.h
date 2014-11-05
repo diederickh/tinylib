@@ -2691,7 +2691,18 @@ extern bool rx_file_exists(std::string filepath) {
   return true;
 }
 
-#if !defined(WIN32) 
+#if defined(WIN32) 
+extern bool rx_is_dir(std::string filepath) {
+  DWORD type = GetFileAttributesA(filepath.c_str());
+  if (type & FILE_ATTRIBUTE_DIRECTORY) {
+    return true; 
+  }
+  if (type & INVALID_FILE_ATTRIBUTES) {
+    return false; 
+  }
+  return false;
+}
+#else
 extern bool rx_is_dir(std::string filepath) {
   struct stat st;
   int result = stat(filepath.c_str(), &st);
