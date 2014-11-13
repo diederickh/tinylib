@@ -57,6 +57,7 @@
   ABS(x)
   DX(i, j, w)
   IS_INSIDE(mousex, mousey, x, y, w, h)
+  SLEEP_MILLIS(ms)
   
   OPENGL - define `ROXLU_USE_OPENGL` before including
   ===================================================================================
@@ -445,6 +446,13 @@
 #  define IS_INSIDE(mousex, mousey, x, y, w, h) ((mousex >= x) && (mousex <= (x+w)) && (mousey >= y) && (mousey <= (y+h)))
 #endif
 
+#ifndef SLEEP_MILLIS 
+# if defined(_WIN32)
+#   define SLEEP_MILLIS(n) Sleep(n); 
+# else
+   #define usleep(n * 1e3)
+# endif
+#endif
 
 #define RX_FLAG_NONE 0x0000              /* default flag */ 
 #define RX_FLAG_LOAD_AS_RGBA 0x0001      /* can be used by image loading functions to convert loaded data directory to RGBA. See the rx_load_png function. */
