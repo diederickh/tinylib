@@ -22,7 +22,11 @@
 
   TODO:
   -----
-  - we're using GLXW to include GL headers now, because default windows headers are GL 1
+  - <del>we're using GLXW to include GL headers now, because default windows headers are GL 1</del>
+    instead we use glad: https://github.com/Dav1dde/glad
+  - implement orthonormal basis from direction vector: http://orbit.dtu.dk/fedora/objects/orbit:113874/datastreams/file_75b66578-222e-4c7d-abdf-f7e255100209/content 
+    By Jeppe Revall Frisvad, http://www.imm.dtu.dk/~jerf/,  
+    
 
   USAGE
   ------
