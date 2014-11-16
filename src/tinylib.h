@@ -454,7 +454,7 @@
 # if defined(_WIN32)
 #   define SLEEP_MILLIS(n) Sleep(n); 
 # else
-   #define usleep(n * 1e3)
+#   define SLEEP_MILLIS(n) usleep(n * 1e3)
 # endif
 #endif
 
