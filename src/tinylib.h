@@ -22,7 +22,11 @@
 
   TODO:
   -----
-  - we're using GLXW to include GL headers now, because default windows headers are GL 1
+  - <del>we're using GLXW to include GL headers now, because default windows headers are GL 1</del>
+    instead we use glad: https://github.com/Dav1dde/glad
+  - implement orthonormal basis from direction vector: http://orbit.dtu.dk/fedora/objects/orbit:113874/datastreams/file_75b66578-222e-4c7d-abdf-f7e255100209/content 
+    By Jeppe Revall Frisvad, http://www.imm.dtu.dk/~jerf/,  
+    
 
   USAGE
   ------
@@ -43,6 +47,22 @@
   #define ROXLU_USE_LOG              - use the logging features
 
 
+  MACROS
+  ===================================================================================
+  HALF_PI
+  PI
+  TWO_PI
+  FOUR_PI
+  DEG_TO_RAD
+  RAD_TO_DEG
+  LOWEST(a, b)
+  HIEGHEST(a, b)
+  CLAMP(val, min, max)
+  ABS(x)
+  DX(i, j, w)
+  IS_INSIDE(mousex, mousey, x, y, w, h)
+  SLEEP_MILLIS(ms)
+  
   OPENGL - define `ROXLU_USE_OPENGL` before including
   ===================================================================================
   rx_create_shader(GL_VERTEX_SHADER, source_char_p);                        - create a shader, pass type
@@ -430,6 +450,13 @@
 #  define IS_INSIDE(mousex, mousey, x, y, w, h) ((mousex >= x) && (mousex <= (x+w)) && (mousey >= y) && (mousey <= (y+h)))
 #endif
 
+#ifndef SLEEP_MILLIS 
+# if defined(_WIN32)
+#   define SLEEP_MILLIS(n) Sleep(n); 
+# else
+#   define SLEEP_MILLIS(n) usleep(n * 1e3)
+# endif
+#endif
 
 #define RX_FLAG_NONE 0x0000              /* default flag */ 
 #define RX_FLAG_LOAD_AS_RGBA 0x0001      /* can be used by image loading functions to convert loaded data directory to RGBA. See the rx_load_png function. */
@@ -612,7 +639,7 @@ class Vec3 {
 
 template<class T> inline Vec3<T>::Vec3() : x(), y(), z() {}
 template<class T> inline Vec3<T>::Vec3(T x, T y, T z) : x(x), y(y), z(z) {}
-template<class T> inline Vec3<T>::Vec3(const Vec3<T>& o) : x(o.x), y(o.y), z(o.z) {}
+template<class T> inline Vec3<T>::Vec3(const Vec3<T>& o) : x(o.x), y(o.y), z(o.z) { }
 template<class T> inline Vec3<T>::Vec3(T f) : x(f), y(f), z(f) {}
 template<class T> inline void Vec3<T>::set(const float xv, const float yv, const float zv) { x = xv; y = yv; z = zv; }
 template<class T> inline T* Vec3<T>::ptr() { return &x; }
