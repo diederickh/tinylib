@@ -289,7 +289,7 @@
   rx_fetch_url(std::string url, std::string& result)                 - downloads an url into the given result.
   rx_download_file(std::string url, std::string filepath)            - downloads a file to the given filepath.
 
-  AUDIO - define `ROXLU_USE_AUDIO`  (will need libcubeb: https://github.com/kinetiknz/cubeb and libsndfile)
+  AUDIO - define `ROXLU_USE_AUDIO`  (will need libcubeb: https://github.com/kinetiknz/cubeb and libsndfile, tested with cubeb version 4bc13035b143ac299a58b8467b87212fc1f5958c )
   ===================================================================================
   AudioPlayer player;                                                - creates a audio player
   player.add(0, "bleep.wav");                                        - add the bleep.wav file (only 44100, 2 channel support atm)
