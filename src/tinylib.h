@@ -3777,6 +3777,7 @@ extern int rx_load_png(std::string filepath,
   }
   
 #if !defined(_WIN32)
+#if 1
   if(setjmp(png_jmpbuf(png_ptr))) {
     png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
     fclose(fp);
@@ -3784,6 +3785,8 @@ extern int rx_load_png(std::string filepath,
     return -6;
   }
 #endif
+#endif
+
   
   // @TODO - add option to rescale to 8bit color info or 16bit
   // @TODO - add option to strip the alpha (not recommended in the example)
@@ -3854,8 +3857,8 @@ extern int rx_load_png(std::string filepath,
     nchannels = 4;
   }
 
-  stride = width * bit_depth * nchannels / 8;  
-  num_bytes = width * height * bit_depth * nchannels / 8;
+  stride = png_get_rowbytes(png_ptr, info_ptr);
+  num_bytes = stride * height; 
 
   /* Reallocate when a buffer size is given */
   unsigned char* pixbuf = NULL;
@@ -3888,7 +3891,7 @@ extern int rx_load_png(std::string filepath,
     }
   }
   else {
-     pixbuf = new unsigned char[num_bytes];
+    pixbuf = (unsigned char*)malloc(num_bytes); 
   }
   
   if(!pixbuf) {
@@ -3902,7 +3905,7 @@ extern int rx_load_png(std::string filepath,
    /* set the outgoing pixel buffer. */
   *pixels = pixbuf;
   
-  png_bytep* row_ptrs = new png_bytep[height];
+  png_bytep* row_ptrs = (png_bytep*)malloc(sizeof(png_bytep) * height); 
   if(!row_ptrs) {
     printf("Error: image is to big: %s\n", filepath.c_str());
     png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
@@ -3910,7 +3913,7 @@ extern int rx_load_png(std::string filepath,
     fp = NULL;
     
     /* free allocations */
-    delete[] *pixels;
+    free(*pixels);
     *pixels = NULL;
     if (NULL != allocated) {
       *allocated = 0;
@@ -3921,13 +3924,15 @@ extern int rx_load_png(std::string filepath,
   for(size_t i = 0; i < height; ++i) {
     row_ptrs[i] = (png_bytep)(*pixels) +(i * stride);
   }
-  
+
   png_read_image(png_ptr, row_ptrs);
-  
-  delete[] row_ptrs;
+  png_read_end(png_ptr, info_ptr);
+
+  free(row_ptrs);
   row_ptrs = NULL;
-  png_destroy_read_struct(&png_ptr, &info_ptr, 0);
+  png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
   fclose(fp);
+
   return num_bytes;
 }
 
