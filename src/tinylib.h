@@ -194,7 +194,7 @@
   rx_rgb_to_hsv(float*, float*)                                            - "", ""
                                                                            
   rx_hsv_to_rgb(h,s,v,r,g,b)                                               - convert rgb to hsv all in 0-1 range. r,g,b will be set, are references
-  rx_hsv_to_rgb(hsv, rgb)                                                  - convert rgb to hsv all in 0-1 rnage. rgb will be set, is a reference
+  rx_hsv_to_rgb(hsv, rgb)                                                  - convert rgb to hsv all in 0-1 range. rgb will be set, is a reference
   rx_hsv_to_rgb(hsv, float*)                                               - "", "" 
   rx_hsv_to_rgb(float,* float*)                                            - "", ""
  
