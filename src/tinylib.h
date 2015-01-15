@@ -176,6 +176,7 @@
                                                                            
   rx_split("string", '/')                                                  - splits a string on the given character returning std::vector<std::string>
   rx_string_replace("string", "replace", "with")                           - replaces characters or string from one to another
+  rx_to_lower("String With Caps")                                          - returns the lowercased version of the given string. 
                                                                            
   rx_hrtime()                                                              - high resolution timer (time in nano sec)
   rx_millis()                                                              - returns the elapsed millis since the first call as float, 1000 millis returns 1.0
@@ -217,6 +218,7 @@
   -----------------------------------------------------------------------------------
   float rx_random(max)                                                     - generate a random value but limit to max
   float rx_random(min, max)                                                - generate a random value between min and max
+  bool rx_is_power_of_two(int n);                                          - returns true if the given number is a power of two.
   
   vec2, vec3, vec4
   -----------------------------------------------------------------------------------
@@ -486,6 +488,7 @@ extern float rx_to_float(const std::string& v);
 extern std::string rx_int_to_string(const int& v);
 extern std::string rx_float_to_string(const float& v);
 extern std::vector<std::string> rx_split(std::string str, char delim);
+extern std::string rx_to_lower(std::string str);
 
 /* time utils */
 extern uint64_t rx_hrtime();
@@ -1186,6 +1189,7 @@ typedef Vec2<float> vec2;
 
 extern float rx_random(float max);
 extern float rx_random(float x, float y);
+extern bool rx_is_power_of_two(int n);
 extern void rx_rgb_to_hsv(float r, float g, float b, float& h, float& s, float& v);
 extern void rx_rgb_to_hsv(vec3 rgb, vec3& hsv);
 extern void rx_rgb_to_hsv(float* rgb, float* hsv);
@@ -3058,6 +3062,13 @@ extern std::vector<std::string> rx_split(std::string str, char delim) {
   return result;
 }
 
+extern std::string rx_to_lower(std::string str) {
+  std::string result;
+  result.resize(str.size());
+  std::transform(str.begin(), str.end(), result.begin(), ::tolower);
+  return result;
+}
+
 extern uint64_t rx_hrtime() {
 #if defined(__APPLE__) 
   mach_timebase_info_data_t info;
@@ -3286,6 +3297,14 @@ bool rx_download_file(std::string url, std::string filepath) {
     return false;
   }
 
+#if !defined(NDEBUG)  
+  res = curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+  RX_CHECK_CURLCODE(res, "Cannot set verbose");
+#endif
+
+  res = curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+  RX_CHECK_CURLCODE(res, "Cannot disable SSL_VERIFYPEER");
+
   res = curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
   RX_CHECK_CURLCODE(res, "Cannot set url");
 
@@ -3330,6 +3349,13 @@ extern float rx_random(float x, float y) {
   low = std::min<float>(x,y);
   result = low + ((high-low) * rand()/(RAND_MAX + 1.0));
   return result;
+}
+
+extern bool rx_is_power_of_two(int n) {
+  if (0 == n) {
+    return false;
+  }
+  return (n & (n - 1)) == 0;
 }
 
 // all in range 0 - 1 
@@ -3471,7 +3497,7 @@ int rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& heig
     }
   }
   else {
-     pixels = new unsigned char[num_bytes];
+    pixels = (unsigned char*)malloc(num_bytes);
   }
 
   if(!pixels) {
