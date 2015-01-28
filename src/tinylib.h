@@ -3862,6 +3862,9 @@ extern int rx_load_png(std::string filepath,
     nchannels += 1;
   }
 
+  /* Handle interlacing (added 2015.01.28) */
+  int num_passes = png_set_interlace_handling(png_ptr);
+
   /* When flag is set to load as RGBA, we need to the info struct */
 
   if ((flags & RX_FLAG_LOAD_AS_RGBA) == RX_FLAG_LOAD_AS_RGBA) {
@@ -3947,9 +3950,14 @@ extern int rx_load_png(std::string filepath,
     return -9;
   }
 
+  /*
+    Some code on github iterate over the number of passes (see interlace
+    above, but this doesn't seem to be necessary.
+  */
   for(size_t i = 0; i < height; ++i) {
     row_ptrs[i] = (png_bytep)(*pixels) +(i * stride);
   }
+
 
   png_read_image(png_ptr, row_ptrs);
   png_read_end(png_ptr, info_ptr);
