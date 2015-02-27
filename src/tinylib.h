@@ -219,6 +219,7 @@
   float rx_random(max)                                                     - generate a random value but limit to max
   float rx_random(min, max)                                                - generate a random value between min and max
   bool rx_is_power_of_two(int n);                                          - returns true if the given number is a power of two.
+  float rx_map(val, inmin, inmax, outmin, outmax, clamp = true)            - map one range to another one and clamp if necessary (true by default)
   
   vec2, vec3, vec4
   -----------------------------------------------------------------------------------
@@ -1190,6 +1191,7 @@ typedef Vec2<float> vec2;
 extern float rx_random(float max);
 extern float rx_random(float x, float y);
 extern bool rx_is_power_of_two(int n);
+extern float rx_map(float val, float inmin, float inmax, float outmin, float outmax, bool clamp = true);
 extern void rx_rgb_to_hsv(float r, float g, float b, float& h, float& s, float& v);
 extern void rx_rgb_to_hsv(vec3 rgb, vec3& hsv);
 extern void rx_rgb_to_hsv(float* rgb, float* hsv);
@@ -3356,6 +3358,32 @@ extern bool rx_is_power_of_two(int n) {
     return false;
   }
   return (n & (n - 1)) == 0;
+}
+
+extern float rx_map(float val, float inmin, float inmax, float outmin, float outmax, bool clamp) {
+
+  float out = (val - inmin) / (inmax - inmin) * (outmax - outmin) + outmin;
+  
+  if (true == clamp) {
+    if (outmin < outmax) {
+      if (out > outmax) {
+        out = outmax;
+      }
+      else if (out < outmin) {
+        out = outmin;
+      }
+    }
+    else {
+      if (out < outmax) {
+        out = outmax;
+      }
+      else if (out > outmin) {
+        out = outmin;
+      }
+    }
+  }
+
+  return out;
 }
 
 // all in range 0 - 1 
