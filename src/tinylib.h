@@ -3892,11 +3892,7 @@ extern int rx_load_png(std::string filepath,
     nchannels += 1;
   }
 
-  /* Handle interlacing (added 2015.01.28) */
-  int num_passes = png_set_interlace_handling(png_ptr);
-
   /* When flag is set to load as RGBA, we need to the info struct */
-
   if ((flags & RX_FLAG_LOAD_AS_RGBA) == RX_FLAG_LOAD_AS_RGBA) {
     if (color_type == PNG_COLOR_TYPE_RGB ||
         color_type == PNG_COLOR_TYPE_GRAY || 
@@ -4279,13 +4275,13 @@ Shader& Shader::reload() {
 
 PainterContextPT::PainterContextPT(Painter& painter)
   :painter(painter)
+  ,allocated(0)
+  ,needs_update(false)
   ,vao(0)
   ,vbo(0)
   ,vert(0)
   ,frag(0)
   ,prog(0)
-  ,allocated(0)
-  ,needs_update(false)
 {
   vert = rx_create_shader(GL_VERTEX_SHADER, PAINTER_VERTEX_PT_VS);
   frag = rx_create_shader(GL_FRAGMENT_SHADER, PAINTER_VERTEX_PT_SAMPLER2D_FS);
@@ -4385,14 +4381,14 @@ void PainterContextPT::draw() {
 // -----------------------------------------------------
 
 PainterContextPC::PainterContextPC(Painter& painter) 
-  :vao(0)
+  :painter(painter)
+  ,allocated(0)
+  ,needs_update(true)
+  ,vao(0)
   ,vbo(0)
   ,vert(0)
   ,frag(0)
   ,prog(0)
-  ,painter(painter)
-  ,needs_update(true)
-  ,allocated(0)
 {
   vert = rx_create_shader(GL_VERTEX_SHADER, PAINTER_VERTEX_PC_VS);
   frag = rx_create_shader(GL_FRAGMENT_SHADER, PAINTER_VERTEX_PC_FS);
@@ -4557,9 +4553,13 @@ void PainterContextPC::draw() {
 Painter::Painter() 
   :context_pc(*this)
   ,context_pt(*this)
-  ,state(PAINTER_STATE_NONE)
   ,circle_resolution(8)
+  ,state(PAINTER_STATE_NONE)
   ,ubo(0)
+  ,win_w(0)
+  ,win_h(0)
+  ,command_type(GL_NONE)
+  ,context_type(0)
 {
 
   col[0] = 1.0f;
