@@ -2776,6 +2776,8 @@ extern std::string rx_to_data_path(const std::string filename) {
   else {
     exepath += filename;
   }
+#elif defined(__linux)
+  exepath += "data/" +filename;
 #else 
   exepath += "data\\" +filename;
 #endif  
