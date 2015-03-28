@@ -104,6 +104,7 @@
   OBJ.copy(std::vector<VertexPT>&)                                          - copy the loaded vertices
 
   Painter                                                                   - simple helper to draw lines, circles, rectangles, textures with GL 3.x
+  Painter.init()                                                            - must be called to ininitialize the GL-objects.
   Painter.clear()                                                           - clear all added elements, resets the canvas
   Painter.draw()                                                            - draw the added shapes
   Painter.rect(x, y, w, h)                                                  - draw a rectangle
@@ -2302,6 +2303,8 @@ class PainterContextPC {
 
 public:
   PainterContextPC(Painter& painter);                             /* a PainterContext is used to render specific vertex data. This context renders only colors */
+  void init();                                                    /* must be called to initialize this context. */
+  void shutdown();                                                /* must be called to cleanup. */
   void clear();                                                   /* clear all vertices */
   void update();                                                  /* updates the vbo if necessary */
   void draw();                                                    /* draws the buffers and commands to screen */
@@ -2329,6 +2332,8 @@ class PainterContextPT {
 
  public:
   PainterContextPT(Painter& painter);                             /* a PainterContextPT is used to render textures */
+  void init();                                                    /* must be called to initialize this context. */
+  void shutdown();                                                /* must be called to cleanup. */
   void clear();                                                   /* clear all vertices */
   void update();                                                  /* updates the vbo with VertexPT data */
   void draw();                                                    /* draws the texture */
@@ -2360,6 +2365,8 @@ class Painter {
 
  public:
   Painter();
+  void init();                                                                      /* must be called to initialize some GL objects we need. */
+  void shutdown();                                                                  /* must be called to cleanup the Painter .*/
   void clear();                                                                     /* clear all vertices */
   void draw();                                                                      /* draw all the added lines, circles, textures etc.. */
   void rect(float x, float y, float w, float h);                                    /* draw a rectangle */
@@ -4283,6 +4290,9 @@ PainterContextPT::PainterContextPT(Painter& painter)
   ,frag(0)
   ,prog(0)
 {
+}
+
+void PainterContextPT::init() {
   vert = rx_create_shader(GL_VERTEX_SHADER, PAINTER_VERTEX_PT_VS);
   frag = rx_create_shader(GL_FRAGMENT_SHADER, PAINTER_VERTEX_PT_SAMPLER2D_FS);
   prog = rx_create_program(vert, frag);
@@ -4305,6 +4315,19 @@ PainterContextPT::PainterContextPT(Painter& painter)
   GLint block_dx = glGetUniformBlockIndex(prog, "Shared");
   glUniformBlockBinding(prog, block_dx, 0);
   glUniform1i(glGetUniformLocation(prog, "u_tex"), 0);
+}
+
+void PainterContextPT::shutdown() {
+
+  if (0 == vao) {
+    return;
+  }
+
+  glDeleteShader(vert);
+  glDeleteShader(frag);
+  glDeleteProgram(prog);
+  glDeleteVertexArrays(1, &vao);
+  glDeleteBuffers(1, &vbo);
 }
 
 void PainterContextPT::texture(GLuint tex, float x, float y, float w, float h) {
@@ -4390,6 +4413,10 @@ PainterContextPC::PainterContextPC(Painter& painter)
   ,frag(0)
   ,prog(0)
 {
+}
+
+void PainterContextPC::init() {
+  
   vert = rx_create_shader(GL_VERTEX_SHADER, PAINTER_VERTEX_PC_VS);
   frag = rx_create_shader(GL_FRAGMENT_SHADER, PAINTER_VERTEX_PC_FS);
   prog = rx_create_program(vert, frag);
@@ -4411,6 +4438,19 @@ PainterContextPC::PainterContextPC(Painter& painter)
   glUseProgram(prog);
   GLint block_dx = glGetUniformBlockIndex(prog, "Shared");
   glUniformBlockBinding(prog, block_dx, 0);
+}
+
+void PainterContextPC::shutdown() {
+  
+  if (0 == vao) {
+    return;
+  }
+
+  glDeleteVertexArrays(1, &vao);
+  glDeleteBuffers(1, &vbo);
+  glDeleteShader(vert);
+  glDeleteShader(frag);
+  glDeleteProgram(prog);
 }
 
 void PainterContextPC::rect(float x, float y, float w, float h) {
@@ -4567,6 +4607,14 @@ Painter::Painter()
   col[2] = 0.0f;
   col[3] = 1.0f;
 
+  resolution(circle_resolution);
+}
+
+void Painter::init() {
+
+  context_pc.init();
+  context_pt.init();
+  
   glGenBuffers(1, &ubo);
   glBindBuffer(GL_UNIFORM_BUFFER, ubo);
   glBufferData(GL_UNIFORM_BUFFER, sizeof(PainterShared), NULL, GL_DYNAMIC_DRAW);
@@ -4575,8 +4623,14 @@ Painter::Painter()
   GLint viewport[4];
   glGetIntegerv(GL_VIEWPORT, viewport);
   resize(viewport[2], viewport[3]);
+}
 
-  resolution(circle_resolution);
+void Painter::shutdown() {
+
+  context_pc.shutdown();
+  context_pt.shutdown();
+  
+  glDeleteBuffers(1, &ubo);
 }
 
 void Painter::clear() {
