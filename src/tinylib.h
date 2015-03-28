@@ -163,6 +163,7 @@
                                                                            
   rx_get_exe_path();                                                       - returns the path to the exe 
   rx_read_file("filepath.txt");                                            - returns the contents of the filepath.
+  rx_set_data_path("/path/to/data/")                                       - used to set a custom data path. 
   rx_to_data_path("filename.txt")                                          - convert the given filename to the data dir
   rx_is_dir("path")                                                        - returns true when the path is a dir
   rx_strip_filename("/path/filename")                                      - removes the filename from the given path
@@ -465,7 +466,11 @@
 #define RX_FLAG_NONE 0x0000              /* default flag */ 
 #define RX_FLAG_LOAD_AS_RGBA 0x0001      /* can be used by image loading functions to convert loaded data directory to RGBA. See the rx_load_png function. */
 
+extern std::string rx_data_path;
+
 /* file utils */
+extern void rx_set_data_path(const std::string path);
+extern std::string rx_get_data_path();
 extern std::string rx_get_exe_path();
 extern std::string rx_to_data_path(const std::string filename);
 extern uint64_t rx_get_file_mtime(std::string filepath);
@@ -2771,25 +2776,42 @@ extern bool rx_is_dir(std::string filepath) {
 #endif // !defined(WIN32) for rx_is_dir()
 
 extern std::string rx_to_data_path(const std::string filename) {
-  std::string exepath = rx_get_exe_path();
+
+  std::string data_path = rx_get_data_path();
+  if (0 != data_path.size()) {
+    return data_path + filename;
+  }
+
+  data_path = rx_get_exe_path();
 
 #if defined(__APPLE__)
-  if(rx_is_dir(exepath +"data")) {
-    exepath += "data/" +filename;
+  if(rx_is_dir(data_path +"data")) {
+    data_path += "data/" +filename;
   }
-  else if(rx_is_dir(exepath +"../MacOS")) {
-    exepath += "../../../data/" +filename;
+  else if(rx_is_dir(data_path +"../MacOS")) {
+    data_path += "../../../data/" +filename;
   }
   else {
-    exepath += filename;
+    data_path += filename;
   }
 #elif defined(__linux)
-  exepath += "data/" +filename;
+  data_path += "data/" +filename;
 #else 
-  exepath += "data\\" +filename;
+  data_path += "data\\" +filename;
 #endif  
 
-  return exepath;
+  return data_path;
+}
+
+std::string rx_data_path = "";
+
+extern void rx_set_data_path(const std::string path) {
+  rx_data_path = path;
+}
+
+extern std::string rx_get_data_path() {
+  
+  return rx_data_path;
 }
 
 /* See http://stackoverflow.com/questions/4021479/getting-file-modification-time-on-unix-using-utime-in-c */
