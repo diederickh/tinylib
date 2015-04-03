@@ -104,6 +104,7 @@
   OBJ.copy(std::vector<VertexPT>&)                                          - copy the loaded vertices
 
   Painter                                                                   - simple helper to draw lines, circles, rectangles, textures with GL 3.x
+  Painter.init()                                                            - must be called to ininitialize the GL-objects.
   Painter.clear()                                                           - clear all added elements, resets the canvas
   Painter.draw()                                                            - draw the added shapes
   Painter.rect(x, y, w, h)                                                  - draw a rectangle
@@ -162,6 +163,7 @@
                                                                            
   rx_get_exe_path();                                                       - returns the path to the exe 
   rx_read_file("filepath.txt");                                            - returns the contents of the filepath.
+  rx_set_data_path("/path/to/data/")                                       - used to set a custom data path. 
   rx_to_data_path("filename.txt")                                          - convert the given filename to the data dir
   rx_is_dir("path")                                                        - returns true when the path is a dir
   rx_strip_filename("/path/filename")                                      - removes the filename from the given path
@@ -464,7 +466,11 @@
 #define RX_FLAG_NONE 0x0000              /* default flag */ 
 #define RX_FLAG_LOAD_AS_RGBA 0x0001      /* can be used by image loading functions to convert loaded data directory to RGBA. See the rx_load_png function. */
 
+extern std::string rx_data_path;
+
 /* file utils */
+extern void rx_set_data_path(const std::string path);
+extern std::string rx_get_data_path();
 extern std::string rx_get_exe_path();
 extern std::string rx_to_data_path(const std::string filename);
 extern uint64_t rx_get_file_mtime(std::string filepath);
@@ -2302,6 +2308,8 @@ class PainterContextPC {
 
 public:
   PainterContextPC(Painter& painter);                             /* a PainterContext is used to render specific vertex data. This context renders only colors */
+  void init();                                                    /* must be called to initialize this context. */
+  void shutdown();                                                /* must be called to cleanup. */
   void clear();                                                   /* clear all vertices */
   void update();                                                  /* updates the vbo if necessary */
   void draw();                                                    /* draws the buffers and commands to screen */
@@ -2329,6 +2337,8 @@ class PainterContextPT {
 
  public:
   PainterContextPT(Painter& painter);                             /* a PainterContextPT is used to render textures */
+  void init();                                                    /* must be called to initialize this context. */
+  void shutdown();                                                /* must be called to cleanup. */
   void clear();                                                   /* clear all vertices */
   void update();                                                  /* updates the vbo with VertexPT data */
   void draw();                                                    /* draws the texture */
@@ -2360,6 +2370,8 @@ class Painter {
 
  public:
   Painter();
+  void init();                                                                      /* must be called to initialize some GL objects we need. */
+  void shutdown();                                                                  /* must be called to cleanup the Painter .*/
   void clear();                                                                     /* clear all vertices */
   void draw();                                                                      /* draw all the added lines, circles, textures etc.. */
   void rect(float x, float y, float w, float h);                                    /* draw a rectangle */
@@ -2764,25 +2776,42 @@ extern bool rx_is_dir(std::string filepath) {
 #endif // !defined(WIN32) for rx_is_dir()
 
 extern std::string rx_to_data_path(const std::string filename) {
-  std::string exepath = rx_get_exe_path();
+
+  std::string data_path = rx_get_data_path();
+  if (0 != data_path.size()) {
+    return data_path + filename;
+  }
+
+  data_path = rx_get_exe_path();
 
 #if defined(__APPLE__)
-  if(rx_is_dir(exepath +"data")) {
-    exepath += "data/" +filename;
+  if(rx_is_dir(data_path +"data")) {
+    data_path += "data/" +filename;
   }
-  else if(rx_is_dir(exepath +"../MacOS")) {
-    exepath += "../../../data/" +filename;
+  else if(rx_is_dir(data_path +"../MacOS")) {
+    data_path += "../../../data/" +filename;
   }
   else {
-    exepath += filename;
+    data_path += filename;
   }
 #elif defined(__linux)
-  exepath += "data/" +filename;
+  data_path += "data/" +filename;
 #else 
-  exepath += "data\\" +filename;
+  data_path += "data\\" +filename;
 #endif  
 
-  return exepath;
+  return data_path;
+}
+
+std::string rx_data_path = "";
+
+extern void rx_set_data_path(const std::string path) {
+  rx_data_path = path;
+}
+
+extern std::string rx_get_data_path() {
+  
+  return rx_data_path;
 }
 
 /* See http://stackoverflow.com/questions/4021479/getting-file-modification-time-on-unix-using-utime-in-c */
@@ -3307,6 +3336,9 @@ bool rx_download_file(std::string url, std::string filepath) {
 #endif
 
   res = curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+  RX_CHECK_CURLCODE(res, "Cannot disable SSL_VERIFYPEER");
+
+  res = curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
   RX_CHECK_CURLCODE(res, "Cannot disable SSL_VERIFYPEER");
 
   res = curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -3892,11 +3924,7 @@ extern int rx_load_png(std::string filepath,
     nchannels += 1;
   }
 
-  /* Handle interlacing (added 2015.01.28) */
-  int num_passes = png_set_interlace_handling(png_ptr);
-
   /* When flag is set to load as RGBA, we need to the info struct */
-
   if ((flags & RX_FLAG_LOAD_AS_RGBA) == RX_FLAG_LOAD_AS_RGBA) {
     if (color_type == PNG_COLOR_TYPE_RGB ||
         color_type == PNG_COLOR_TYPE_GRAY || 
@@ -4280,14 +4308,17 @@ Shader& Shader::reload() {
 
 PainterContextPT::PainterContextPT(Painter& painter)
   :painter(painter)
+  ,allocated(0)
+  ,needs_update(false)
   ,vao(0)
   ,vbo(0)
   ,vert(0)
   ,frag(0)
   ,prog(0)
-  ,allocated(0)
-  ,needs_update(false)
 {
+}
+
+void PainterContextPT::init() {
   vert = rx_create_shader(GL_VERTEX_SHADER, PAINTER_VERTEX_PT_VS);
   frag = rx_create_shader(GL_FRAGMENT_SHADER, PAINTER_VERTEX_PT_SAMPLER2D_FS);
   prog = rx_create_program(vert, frag);
@@ -4310,6 +4341,19 @@ PainterContextPT::PainterContextPT(Painter& painter)
   GLint block_dx = glGetUniformBlockIndex(prog, "Shared");
   glUniformBlockBinding(prog, block_dx, 0);
   glUniform1i(glGetUniformLocation(prog, "u_tex"), 0);
+}
+
+void PainterContextPT::shutdown() {
+
+  if (0 == vao) {
+    return;
+  }
+
+  glDeleteShader(vert);
+  glDeleteShader(frag);
+  glDeleteProgram(prog);
+  glDeleteVertexArrays(1, &vao);
+  glDeleteBuffers(1, &vbo);
 }
 
 void PainterContextPT::texture(GLuint tex, float x, float y, float w, float h) {
@@ -4386,15 +4430,19 @@ void PainterContextPT::draw() {
 // -----------------------------------------------------
 
 PainterContextPC::PainterContextPC(Painter& painter) 
-  :vao(0)
+  :painter(painter)
+  ,allocated(0)
+  ,needs_update(true)
+  ,vao(0)
   ,vbo(0)
   ,vert(0)
   ,frag(0)
   ,prog(0)
-  ,painter(painter)
-  ,needs_update(true)
-  ,allocated(0)
 {
+}
+
+void PainterContextPC::init() {
+  
   vert = rx_create_shader(GL_VERTEX_SHADER, PAINTER_VERTEX_PC_VS);
   frag = rx_create_shader(GL_FRAGMENT_SHADER, PAINTER_VERTEX_PC_FS);
   prog = rx_create_program(vert, frag);
@@ -4416,6 +4464,19 @@ PainterContextPC::PainterContextPC(Painter& painter)
   glUseProgram(prog);
   GLint block_dx = glGetUniformBlockIndex(prog, "Shared");
   glUniformBlockBinding(prog, block_dx, 0);
+}
+
+void PainterContextPC::shutdown() {
+  
+  if (0 == vao) {
+    return;
+  }
+
+  glDeleteVertexArrays(1, &vao);
+  glDeleteBuffers(1, &vbo);
+  glDeleteShader(vert);
+  glDeleteShader(frag);
+  glDeleteProgram(prog);
 }
 
 void PainterContextPC::rect(float x, float y, float w, float h) {
@@ -4558,9 +4619,13 @@ void PainterContextPC::draw() {
 Painter::Painter() 
   :context_pc(*this)
   ,context_pt(*this)
-  ,state(PAINTER_STATE_NONE)
   ,circle_resolution(8)
+  ,state(PAINTER_STATE_NONE)
   ,ubo(0)
+  ,win_w(0)
+  ,win_h(0)
+  ,command_type(GL_NONE)
+  ,context_type(0)
 {
 
   col[0] = 1.0f;
@@ -4568,6 +4633,14 @@ Painter::Painter()
   col[2] = 0.0f;
   col[3] = 1.0f;
 
+  resolution(circle_resolution);
+}
+
+void Painter::init() {
+
+  context_pc.init();
+  context_pt.init();
+  
   glGenBuffers(1, &ubo);
   glBindBuffer(GL_UNIFORM_BUFFER, ubo);
   glBufferData(GL_UNIFORM_BUFFER, sizeof(PainterShared), NULL, GL_DYNAMIC_DRAW);
@@ -4576,8 +4649,14 @@ Painter::Painter()
   GLint viewport[4];
   glGetIntegerv(GL_VIEWPORT, viewport);
   resize(viewport[2], viewport[3]);
+}
 
-  resolution(circle_resolution);
+void Painter::shutdown() {
+
+  context_pc.shutdown();
+  context_pt.shutdown();
+  
+  glDeleteBuffers(1, &ubo);
 }
 
 void Painter::clear() {
