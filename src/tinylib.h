@@ -3338,6 +3338,9 @@ bool rx_download_file(std::string url, std::string filepath) {
   res = curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
   RX_CHECK_CURLCODE(res, "Cannot disable SSL_VERIFYPEER");
 
+  res = curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+  RX_CHECK_CURLCODE(res, "Cannot disable SSL_VERIFYPEER");
+
   res = curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
   RX_CHECK_CURLCODE(res, "Cannot set url");
 
