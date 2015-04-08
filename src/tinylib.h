@@ -165,6 +165,7 @@
   rx_read_file("filepath.txt");                                            - returns the contents of the filepath.
   rx_set_data_path("/path/to/data/")                                       - used to set a custom data path. 
   rx_to_data_path("filename.txt")                                          - convert the given filename to the data dir
+  rx_get_data_path()                                                       - get the currently set/used data path                            
   rx_is_dir("path")                                                        - returns true when the path is a dir
   rx_strip_filename("/path/filename")                                      - removes the filename from the given path
   rx_strip_file_ext("/path/filename")                                      - removes the extension from the given filename, including the dot. e.g. image.jpg becomes "image"
