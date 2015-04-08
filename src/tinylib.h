@@ -3898,7 +3898,7 @@ extern int rx_load_png(std::string filepath,
     return -7;
   }
   
-  // @TODO - add option to allow input colors/gray values to be not converted
+  /* @TODO - add option to allow input colors/gray values to be not converted */
 
   switch(color_type) {
     case PNG_COLOR_TYPE_PALETTE: {
@@ -3919,7 +3919,7 @@ extern int rx_load_png(std::string filepath,
     }
   };
 
-  // When transparency is set convert it to a full alpha channel
+  /* When transparency is set convert it to a full alpha channel */
   if(png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) {
     png_set_tRNS_to_alpha(png_ptr);
     nchannels += 1;
@@ -4006,6 +4006,7 @@ extern int rx_load_png(std::string filepath,
     if (NULL != allocated) {
       *allocated = 0;
     }
+
     return -9;
   }
 
