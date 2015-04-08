@@ -2790,7 +2790,8 @@ extern std::string rx_to_data_path(const std::string filename) {
     data_path += "data/" +filename;
   }
   else if(rx_is_dir(data_path +"../MacOS")) {
-    data_path += "../../../data/" +filename;
+    /* When we're part of an .app bundle, the Resources dir is our data dir. */
+    data_path += "../Resources/" +filename;
   }
   else {
     data_path += filename;
