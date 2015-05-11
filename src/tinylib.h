@@ -339,6 +339,7 @@
 // ------------------------------------------------------------------------------------
 
 #include <assert.h>
+#include <setjmp.h>                               /* for jpeg error handling. */
 #include <iostream>
 #include <cmath>
 #include <iterator>
@@ -347,7 +348,8 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
-#include <map> 
+#include <map>
+
 
 #if defined(_WIN32)
 #  include <direct.h>                              /* _mkdir */
@@ -1525,6 +1527,11 @@ extern bool rx_save_png(std::string filepath, unsigned char* pixels, int w, int 
 #elif defined(__linux)
 #  include <jpeglib.h>
 #endif
+
+struct rx_jpeg_error_mgr {
+  struct jpeg_error_mgr pub;
+  jmp_buf setjmp_buffer;
+};
 
 extern int rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& height, int& nchannels, int* allocated = NULL);
 extern bool rx_save_jpg(std::string filepath, unsigned char* pix, int width, int height, int nchannels, int quality = 80, bool flip = false, J_COLOR_SPACE colorSpace = JCS_RGB, J_DCT_METHOD dctMethod = JDCT_FASTEST);
@@ -3485,6 +3492,12 @@ extern void rx_hsv_to_rgb(float* hsv, float* rgb) {
 
 #if defined(ROXLU_USE_JPG) && defined(ROXLU_IMPLEMENTATION)
 
+static void rx_load_jpg_error_handler(j_common_ptr cinfo) {
+  printf("Error occured while loading the jpeg (rx_load_jpg). This error is triggered by libjpeg. \n");
+  struct rx_jpeg_error_mgr* jerr = (struct rx_jpeg_error_mgr*)cinfo->err;
+  longjmp(jerr->setjmp_buffer, 1);
+}
+
 /*
 
   @param std::string filepath      - The file to laod
@@ -3505,9 +3518,9 @@ extern void rx_hsv_to_rgb(float* hsv, float* rgb) {
  */
 int rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& height, int& nchannels, int* allocated) {
   
-  struct jpeg_error_mgr jerr;
+  struct rx_jpeg_error_mgr jerr;
   struct jpeg_decompress_struct cinfo;
-  FILE* fp;
+  FILE* fp = NULL;
   JSAMPARRAY buffer;
   int stride = 0;
   int num_bytes = 0;
@@ -3515,11 +3528,24 @@ int rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& heig
   unsigned char* tmp = NULL;
   
   if( (fp = fopen(filepath.c_str(), "rb")) == NULL ) {
-    printf("Error: cannot load %s\n", filepath.c_str());
+    printf("Error: cannot load %s (rx_load_jpg)\n", filepath.c_str());
     return -1;
   }
 
-  cinfo.err = jpeg_std_error(&jerr);
+  memset(&jerr, 0x00, sizeof(jerr));
+  cinfo.err = jpeg_std_error(&jerr.pub);
+
+  /* Set the error handler, otherwise libjpg calls exit(). */
+  jerr.pub.error_exit = rx_load_jpg_error_handler;
+  if (setjmp(jerr.setjmp_buffer)) { /* When an error occurs we jump to this part. */
+    if (NULL != fp) {
+      fclose(fp);
+      fp = NULL;
+    }
+    
+    jpeg_destroy_decompress(&cinfo);
+    return -1;
+  }
 
   jpeg_create_decompress(&cinfo);
   jpeg_stdio_src(&cinfo, fp);
@@ -3541,14 +3567,14 @@ int rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& heig
         *allocated = num_bytes;
       }
       else {
-        printf("Error: cannot allocate a buffer for the jpg.\n");
+        printf("Error: cannot allocate a buffer for the jpg. (rx_load_jpg)\n");
       }
     }
     else if (num_bytes > *allocated) {
       /* already allocated, try to reallocate if necessary */
       tmp = (unsigned char*)realloc(*pix, num_bytes);
       if (NULL == tmp) {
-        printf("Error: cannot reallocate the pixel buffer for the jpg.");
+        printf("Error: cannot reallocate the pixel buffer for the jpg. (rx_load_jpg)\n");
         pixels = NULL;
       }
       else {
@@ -3565,7 +3591,7 @@ int rx_load_jpg(std::string filepath, unsigned char** pix, int& width, int& heig
   }
 
   if(!pixels) {
-    printf("Error: cannot allocate pixel buffer for jpg.\n");
+    printf("Error: cannot allocate pixel buffer for jpg.(rx_load_jpg) \n");
     jpeg_finish_decompress(&cinfo);
     jpeg_destroy_decompress(&cinfo);
     fclose(fp);
