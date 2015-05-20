@@ -258,11 +258,10 @@
   mat4& mat4.position(x, y, z)
   mat4& mat4.ortho(l, r, b, t, n , f)                                      - pm.ortho(0, w, h, 0, 0.0f, 100.0f);
   mat4& mat4.frustum(l, r, b, t, n, f)
-  mat4& mat4.perspective(fov, aspect, near, far)                           - create a perspective projection matrix 
+  mat4& mat4.perspective(fov, aspect, near, far)                           - create a perspective projectio matrix 
   mat4& mat4.lookat(eye, pos, up)
   void  mat4.print()
   float* mat4.ptr()                                                        - get a pointer to the data
-  
   
   <example>
   // create an ortho matrix with 0,0 at the top left
@@ -270,6 +269,24 @@
   m.ortho(0.0f, w, h, 0, 0.0f, 100.0f);
   </example>
 
+  quat
+  -----------------------------------------------------------------------------------
+  quat.set(x,y,z)
+  quat.normalize()
+  quat.length()
+  quat.lengthSquared()
+  quat.dot()
+  quat.identity()
+  quat.inverse()
+  quat.toMat4(mat4& m)
+  quat.fromMat4(mat4& m)
+  quat.fromAngleAxis(radians, x, y, z);
+  quat.multiply(otherQuat)
+  quat.lerp(q1, q2, t, q* out)
+  quat.slerp(q1, q2, t, q& out)
+  quat.print()
+  mat4 quat.getMat4()
+  vec3 quat.transform()
 
   Spline<T>  - catmull rom interpolation (MAKE SURE TO USE AT LEAST 4 POINTS!)
   -----------------------------------------------------------------------------------
@@ -902,6 +919,11 @@ Matrix4<T>& Matrix4<T>::ortho(T l, T r, T b, T t, T n, T f) {
 
 template<class T>
 Matrix4<T>& Matrix4<T>::perspective(T fovDegrees, T aspect, T n, T f) {
+
+  if (n == 0) {
+    printf("Warning: creating a perspective matrix with near 0, this can result in depth test artifacts, use e.g. 0.1\n");
+  }
+  
   T tan_hfov = tan( (fovDegrees * DEG_TO_RAD) * T(0.5) );
   m[1]  = T(0);
   m[2]  = T(0);
@@ -1116,6 +1138,445 @@ Matrix4<T>& Matrix4<T>::lookat(Vec3<T> pos, Vec3<T> target, Vec3<T> up) {
     
   return *this ;
 }
+
+/*
+
+  Quaternion class, handy tool for 3D rotations.
+  ==============================================
+
+  - When using quaternions for rotations you need to use 
+    unit quaternions! This is super importants as some functions
+    are optimized for this!
+
+  - Slerp should not exceed PI!, PI * 0.99 works, PI not. And slerp should 
+    be used to interpolate small values 
+
+  - When working with Quaternions that represent oriantation, we only
+    work with unit-quaternions
+  
+  - The `conjugate` (q*) and `inverse` (q^-1) represent the same thing
+    when working with unit-quaternions.  The flip the axis of rotation,
+    which means that an angular displacement rotates in the other
+    direction.
+  
+  - Quaternions can be multiplied; the result is similar to the cross
+    product for vectors: it yields another quaternion and it is not
+    commutative.
+  
+  - Quaternion multiplication can be used to concatenate multiple
+    rotations, just like matrix multiplication.  Multiplications of
+    matrices always read from right to left (inside out).
+
+   Resources
+   ---------:
+   [0]   Intel, http://software.intel.com/sites/default/files/m/d/4/1/d/8/293748.pdf
+         "From Quaternion to Matrix and Back", J.M.P. van Waveren, 27th feb. 2005, id software
+   [1]   Irrlicht: http://irrlicht.sourceforge.net/
+   [2]   Quaternions, Ken Shoemake, ftp://ftp.cis.upenn.edu/pub/graphics/shoemake/quatut.ps.Z
+   [3]   Game Engine Physics Development, Ian Millington, https://github.com/idmillington/cyclone-physics/tree/master/src
+   [4]   GamePlay, http://www.gameplay3d.org
+   [5]   Essential mathematics for games and interactive applications, Bishop
+   [6]   Slerping Clock Cycles, J.M.P van Waveren,  http://software.intel.com/sites/default/files/m/d/4/1/d/8/293747_293747.pdf
+   [7]   Slerp from GamePlay, https://raw.github.com/blackberry/GamePlay/master/gameplay/src/Quaternion.cpp
+   [8]   My previous implementation that also supports mat3 and some other features: https://gist.github.com/roxlu/9fc5487a1c4e0794342b
+*/
+
+/* ---------------------------------------------------------------------------- */
+  
+float atan_positive(float y, float x);
+float sin_zero_half_pi(float a);
+
+/* ---------------------------------------------------------------------------- */
+
+template<class T>
+class Quaternion {
+ public:
+  Quaternion(T x = 0, T y = 0, T z = 0, T w = 1);
+  Quaternion(const Quaternion<T>& q);
+  Quaternion(Matrix4<T>& m);
+  void set(const T xx, const T yy, const T zz, const T ww);
+  void normalize();
+  T length();
+  T lengthSquared();
+  T dot(Quaternion<T>& other);
+  void identity();
+  void inverse();
+  void toMat4(Matrix4<T>& m);
+  Matrix4<T> getMat4();
+  void fromMat4(Matrix4<T>& m);
+  void fromAngleAxis(const T radians, const T xx, const T yy, const T zz);
+  void multiply(const Quaternion<T>& q);
+  void multiply(const Quaternion<T>& q1, const Quaternion<T>& q2, Quaternion<T>* dst);
+  Vec3<T> transform(const Vec3<T>& v) const;
+  void lerp(const Quaternion<T>& q1, const Quaternion<T>& q2, T t, Quaternion<T>* dst);
+  static void slerp(const Quaternion<T>& from, const Quaternion<T>& to, T t, Quaternion<T>& result);
+  void print();
+
+  Vec3<T> operator*(const Vec3<T>& v) const;
+  Quaternion<T> operator*(const Quaternion<T>& other) const;
+  Quaternion<T>& operator*=(const Quaternion<T>& other);
+ public:
+  T x;
+  T y;
+  T z;
+  T w;
+};
+
+/* ---------------------------------------------------------------------------- */
+  
+template<class T>
+Quaternion<T>::Quaternion(T x, T y, T z, T w)
+:x(x)
+,y(y)
+  ,z(z)
+  ,w(w)
+{
+}
+  
+template<class T>
+inline Quaternion<T>::Quaternion(Matrix4<T>& m) {
+  fromMat4(m);
+}
+
+template<class T>
+inline Quaternion<T>::Quaternion(const Quaternion<T>& q)
+:x(q.x)
+,y(q.y)
+  ,z(q.z)
+  ,w(q.w)
+{
+}
+  
+template<class T>
+inline void Quaternion<T>::set(const T xx, const T yy, const T zz, const T ww) {
+  x = xx;
+  y = yy;
+  z = zz;
+  w = ww;
+}
+  
+template<class T>
+inline void Quaternion<T>::Quaternion::normalize() {
+  T n = x * x + y * y + z * z + w * w;
+  if(n == 1.0) {
+    return;
+  }
+
+  n = sqrt(n);
+  if(n < 0.000001) {
+    return;
+  }
+
+  n = 1.0 / n;
+  x *= n;
+  y *= n;
+  z *= n;
+  w *= n;
+}
+  
+template<class T>
+inline T Quaternion<T>::length() {
+  return sqrt(lengthSquared());
+}
+
+template<class T>
+inline T Quaternion<T>::lengthSquared() {
+  return (x * x) + (y * y) + (z * z) + (w * w);
+}
+
+template<class T>
+inline T Quaternion<T>::dot(Quaternion<T>& other) {
+  return (x * other.x) + (y * other.y) + (z * other.z) + (w * other.w);
+}
+
+template<class T>
+inline void Quaternion<T>::identity() {
+  x = 0.0f;
+  y = 0.0f;
+  z = 0.0f;
+  w = 1.0f;
+}
+
+template<class T>
+inline void Quaternion<T>::inverse() {
+  T n = x * x + y * y + z * z + w * w;
+  if(n == 1.0f) {
+    x = -x;
+    y = -y;
+    z = -z;
+    return;
+  }
+
+  if(n < 0.000001f) {
+    return;
+  }
+
+  n = 1.0f / n;
+  x = (-x * n);
+  y = (-y * n);
+  z = (-z * n);
+  w = w * n;
+}
+
+// @see [0], the { } sections are hints for compiler optimization
+template<class T>
+inline void Quaternion<T>::toMat4(Matrix4<T>& m) {
+
+  T x2 = x + x;
+  T y2 = y + y;
+  T z2 = z + z;
+
+  {
+    T xx2 = x * x2;
+    T yy2 = y * y2;
+    T zz2 = z * z2;
+
+    m[0] = 1.0f - yy2 - zz2;
+    m[5] = 1.0f - xx2 - zz2;
+    m[10] = 1.0f - xx2 - yy2;
+  }
+  {
+    T yz2 = y * z2;
+    T wx2 = w * x2;
+
+    m[6] = yz2 - wx2;
+    m[9] = yz2 + wx2;
+  }
+  {
+    T xy2 = x * y2;
+    T wz2 = w * z2;
+
+    m[1] = xy2 - wz2;
+    m[4] = xy2 + wz2;
+  }
+  {
+    T xz2 = x * z2;
+    T wy2 = w * y2;
+
+    m[8] = xz2 - wy2;
+    m[2] = xz2 + wy2;
+  }
+}
+  
+template<class T>
+inline Matrix4<T> Quaternion<T>::getMat4() {
+  Matrix4<T> m;
+  toMat4(m);
+  return m;
+}
+
+// @see [0]
+template<class T>
+inline void Quaternion<T>::fromMat4(Matrix4<T>& m) {
+    
+  if(m[0] + m[5] + m[10] > 0.0f) {
+    T t = +m[0] + m[5] + m[10] + 1.0f;
+    T s = sqrt(t) * 0.5f;
+    w = s * t;
+    z = (m[4] - m[1]) * s;
+    y = (m[2] - m[8]) * s;
+    x = (m[9] - m[6]) * s;
+  }
+  else if(m[0] > m[5] && m[0] > m[10]) {
+    T t = +m[0] - m[5] - m[10] + 1.0f;
+    T s = sqrt(t) * 0.5f;
+    x = s * t;
+    y = (m[4] + m[1]) * s;
+    z = (m[2] + m[8]) * s;
+    w = (m[9] - m[6]) * s;
+  }
+  else if(m[5] > m[10]) {
+    T t = -m[0] + m[5] - m[10] + 1.0f;
+    T s = sqrt(t) * 0.5f;
+    y = s * t;
+    x = (m[4] + m[1]) * s;
+    w = (m[2] - m[8]) * s;
+    z = (m[9] + m[6]) * s;
+  }
+  else {
+    T t = -m[0] - m[5] + m[10] + 1.0f;
+    T s = sqrt(t) * 0.5f;
+    z = s * t;
+    w = (m[4] - m[1]) * s;
+    x = (m[2] + m[8]) * s;
+    y = (m[9] + m[6]) * s;
+  }
+}
+
+template<class T>
+inline void Quaternion<T>::fromAngleAxis(const T radians, const T xx, const T yy, const T zz) {
+  const T ha = 0.5 * radians;
+  const T s = sin(ha);
+  w = cos(ha);
+  x = s * xx;
+  y = s * yy;
+  z = s * zz;
+}
+
+template<class T>
+inline void Quaternion<T>::multiply(const Quaternion<T>& q) {
+  multiply(*this, q, this);
+}
+
+template<class T>
+inline void Quaternion<T>::multiply(const Quaternion<T>& q1, const Quaternion<T>& q2, Quaternion<T>* dst) {
+    
+  T xx = q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y;
+  T yy = q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x;
+  T zz = q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.loat;
+  T ww = q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z;
+
+  dst->x = xx;
+  dst->y = yy;
+  dst->z = zz;
+  dst->w = ww;
+}
+
+template<class T>
+inline Vec3<T> Quaternion<T>::transform(const Vec3<T>& v) const {
+    
+  T m = (2.0 * x * v.x + y * v.y + z * v.z);
+  T c = 2.0 * w;
+  T p = c * w - 1.0;
+
+  return Vec3<T>(
+    p * v.x + m * x + c * (y * v.z - z * v.y)
+    ,p * v.y + m * y + c * (z * v.x - x * v.z)
+    ,p * v.z + m * z + c * (x * v.y - y * v.x)
+  );
+}
+
+template<class T>
+inline void Quaternion<T>::lerp(const Quaternion<T>& q1, const Quaternion<T>& q2, T t, Quaternion<T>* dst) {
+    
+  if(t == 0.0) {
+    memcpy(&dst->x, &q1.x, sizeof(T) * 4);
+    return;
+  }
+  else if(t == 1.0) {
+    memcpy(&dst->x, &q2.x, sizeof(T) * 4);
+    return;
+  }
+
+  T t1 = 1.0 - t;
+  dst->x = t1 * q1.x + t * q2.x;
+  dst->y = t1 * q1.y + t * q2.y;
+  dst->z = t1 * q1.z + t * q2.z;
+  dst->w = t1 * q1.w + t * q2.w;
+}
+
+template<class T>
+inline void Quaternion<T>::slerp(const Quaternion<T>& from, const Quaternion<T>& to, T t, Quaternion<T>& result) {
+    
+  if(t <= 0.0) {
+    memcpy(&result.x, &from.x, sizeof(T) * 4);
+    return;
+  }
+  else if(t >= 1.0) {
+    memcpy(&result.x, &to.x, sizeof(T) * 4);
+    return;
+  }
+
+  float cosom, abs_cosom, sinom, sin_sqr, omega, scale0, scale1;
+  cosom = from.x * to.x + from.y * to.y + from.z * to.z + from.w * to.w;
+  abs_cosom = fabs( cosom );
+  if ( ( 1.0f - abs_cosom ) > 1e-6f ) {
+    sin_sqr = 1.0f - abs_cosom * abs_cosom;
+    sinom = sqrtf( sin_sqr );
+    omega = atan_positive( sin_sqr * sinom, abs_cosom );
+    scale0 = sin_zero_half_pi( ( 1.0f - t ) * omega ) * sinom;
+    scale1 = sin_zero_half_pi( t * omega ) * sinom;
+  } else {
+    scale0 = 1.0f - t;
+    scale1 = t;
+  }
+  scale1 = ( cosom >= 0.0f ) ? scale1 : -scale1;
+  result.x = scale0 * from.x + scale1 * to.x;
+  result.y = scale0 * from.y + scale1 * to.y;
+  result.z = scale0 * from.z + scale1 * to.z;
+  result.w = scale0 * from.w + scale1 * to.w;
+}
+
+template<class T>
+inline Quaternion<T> Quaternion<T>::operator*(const Quaternion<T>& other) const {
+  Quaternion<T> result(*this);
+  result.multiply(other);
+  return result;
+}
+
+template<class T>
+inline Vec3<T> Quaternion<T>::operator*(const Vec3<T>& v) const {
+  return transform(v);
+}
+
+template<class T>
+inline Quaternion<T>& Quaternion<T>::operator*=(const Quaternion<T>& other) {
+  multiply(other);
+  return *this;
+}
+
+template<class T>
+inline void Quaternion<T>::print() {
+  printf("%f, %f, %f, %f\n", x, y, z, w);
+}
+  
+inline float sin_zero_half_pi(float a) {
+  float s, t;
+  s = a * a;
+  t = -2.39e-08f;
+  t *= s;
+  t += 2.7526e-06f;
+  t *= s;
+  t += -1.98409e-04f;
+  t *= s;
+  t += 8.3333315e-03f;
+  t *= s;
+  t += -1.666666664e-01f;
+  t *= s;
+  t += 1.0f;
+  t *= a;
+  return t;
+}
+
+inline float atan_positive(float y, float x) {
+  float a, d, s, t;
+  if( y > x ) {
+    a = -x / y;
+    d = PI / 2;
+  }
+  else {
+    a = y / x;
+    d = 0.0f;
+  }
+  s = a * a;
+  t = 0.0028662257f;
+  t *= s;
+  t += -0.0161657367f;
+  t *= s;
+  t += 0.0429096138f;
+  t *= s;
+  t += -0.0752896400f;
+  t *= s;
+  t += 0.1065626393f;
+  t *= s;
+  t += -0.1420889944f;
+  t *= s;
+  t += 0.1999355085f;
+  t *= s;
+  t += -0.3333314528f;
+  t *= s;
+  t += 1.0f;
+  t *= a;
+  t += d;
+  return t;
+}
+
+/* ---------------------------------------------------------------------------- */
+  
+typedef Quaternion<float> quat;
+
+
+/* **************************************************************************** */
 
 template<class T>
 struct Spline {
