@@ -271,6 +271,7 @@
 
   quat
   -----------------------------------------------------------------------------------
+  quat(x,y,z,w)
   quat.set(x,y,z)
   quat.normalize()
   quat.length()
@@ -411,9 +412,6 @@
 #  include <stdint.h>                               /* uint*_t types */
 #  include <sys/stat.h>
 #  include <stdarg.h>
-#  if defined(ROXLU_USE_OPENGL)
-//#     include <GLXW/glxw.h>
-#  endif
 #  define MAX_PATH 4096
 #endif
 
@@ -923,6 +921,12 @@ Matrix4<T>& Matrix4<T>::perspective(T fovDegrees, T aspect, T n, T f) {
   if (n == 0) {
     printf("Warning: creating a perspective matrix with near 0, this can result in depth test artifacts, use e.g. 0.1\n");
   }
+
+  printf("creating pers: fovy: %f (degrees), aspect: %f, near: %f, far: %f\n",
+         fovDegrees,
+         aspect,
+         n,
+         f);
   
   T tan_hfov = tan( (fovDegrees * DEG_TO_RAD) * T(0.5) );
   m[1]  = T(0);
@@ -944,10 +948,10 @@ Matrix4<T>& Matrix4<T>::perspective(T fovDegrees, T aspect, T n, T f) {
 
 template<class T>
 void Matrix4<T>::print() {
-  printf("%f, %f, %f, %f\n", m[0], m[4], m[8], m[12]);
-  printf("%f, %f, %f, %f\n", m[1], m[5], m[9], m[13]);
-  printf("%f, %f, %f, %f\n", m[2], m[6], m[10], m[14]);
-  printf("%f, %f, %f, %f\n", m[3], m[7], m[11], m[15]);
+  printf("% 2.2f, % 2.2f, % 2.2f, % 2.2f\n", m[0], m[4], m[8], m[12]);
+  printf("% 2.2f, % 2.2f, % 2.2f, % 2.2f\n", m[1], m[5], m[9], m[13]);
+  printf("% 2.2f, % 2.2f, % 2.2f, % 2.2f\n", m[2], m[6], m[10], m[14]);
+  printf("% 2.2f, % 2.2f, % 2.2f, % 2.2f\n", m[3], m[7], m[11], m[15]);
 }
 
 template<class T>
@@ -979,48 +983,64 @@ Matrix4<T>& Matrix4<T>::rotate(T rad, const Vec3<T>& v) {
 
 template<class T>
 Matrix4<T> Matrix4<T>::rotation(T rad, T x, T y, T z) {
-    
+
   Matrix4<T> mat;
-    
-  float c = cos(rad);
-  float s = sin(rad);
-  float t = 1.0f - c;
-    
-  Vec3<T> ax(x,y,z);
-  ax = normalized(ax);
-    
-  float tx = t * ax.x;
-  float ty = t * ax.y;
-  float tz = t * ax.z;
-    
-  float sx = s * ax.x;
-  float sy = s * ax.y;
-  float sz = s * ax.z;
-    
-  float txy = tx * ax.y;
-  float tyz = tx * ax.z;
-  float txz = tx * ax.z;
-    
-  mat.m[0]  = tx * ax.x + c;
-  mat.m[4]  = txy - sz;
-  mat.m[8]  = txz + sy;
+  float st = sin(rad);
+  float ct = cos(rad);
+  float len = sqrt(x * x + y * y + z * z);
+  float inv_len = len ? 1.0f / len: 0.0f;
+
+  x *= inv_len;
+  y *= inv_len;
+  z *= inv_len;
+
+  float mtx = (1.0 - ct) * x;
+  float mty = (1.0 - ct) * y;
+  float mtz = (1.0 - ct) * z;
+  
+#if 0
+  
+  /* Left Handed */
+  mat.m[0] = x * mtx + ct;
+  mat.m[1] = y * mtx - st * z;
+  mat.m[2] = z * mtx + st * y;
+  
+  mat.m[4] = x * mty + st * z;
+  mat.m[5] = y * mty + ct;
+  mat.m[6] = z * mty - st * x;
+  
+  mat.m[8] = x * mtz - st * y;
+  mat.m[9] = y * mtz + st * x;
+  mat.m[10] = z * mtz + ct;
+
   mat.m[12] = 0.0f;
-    
-  mat.m[1]  = txy + sz;
-  mat.m[5]  = ty * ax.y + c;
-  mat.m[9]  = tyz - sx;
   mat.m[13] = 0.0f;
-    
-  mat.m[2]  = txz - sy;
-  mat.m[6]  = tyz + sx;
-  mat.m[10] = tz * ax.z + c;
   mat.m[14] = 0.0f;
-    
-  mat.m[3]  = 0.0f;
-  mat.m[7]  = 0.0f;
+  
+#else
+  
+  /* Right Handed (OpenGL)*/
+  mat.m[0] = x * mtx + ct;
+  mat.m[1] = x * mty + st * z;
+  mat.m[2] = x * mtz - st * y;
+  mat.m[3] = 0.0f;
+
+  mat.m[4] = y * mtx - st * z;
+  mat.m[5] = y * mty + ct;
+  mat.m[6] = y * mtz + st * x;
+  mat.m[8] = 0.0f;
+  
+  mat.m[8] = z * mtx + st * y;
+  mat.m[9] = z * mty - st * x;
+  mat.m[10] = z * mtz + ct;
   mat.m[11] = 0.0f;
+#endif
+
+  mat.m[12]  = 0.0f;
+  mat.m[13]  = 0.0f;
+  mat.m[15] = 0.0f;
   mat.m[15] = 1.0f;
-    
+  
   return mat;
 }
 
@@ -1179,6 +1199,7 @@ Matrix4<T>& Matrix4<T>::lookat(Vec3<T> pos, Vec3<T> target, Vec3<T> up) {
    [6]   Slerping Clock Cycles, J.M.P van Waveren,  http://software.intel.com/sites/default/files/m/d/4/1/d/8/293747_293747.pdf
    [7]   Slerp from GamePlay, https://raw.github.com/blackberry/GamePlay/master/gameplay/src/Quaternion.cpp
    [8]   My previous implementation that also supports mat3 and some other features: https://gist.github.com/roxlu/9fc5487a1c4e0794342b
+
 */
 
 /* ---------------------------------------------------------------------------- */
@@ -1215,6 +1236,7 @@ class Quaternion {
   Vec3<T> operator*(const Vec3<T>& v) const;
   Quaternion<T> operator*(const Quaternion<T>& other) const;
   Quaternion<T>& operator*=(const Quaternion<T>& other);
+
  public:
   T x;
   T y;
@@ -1226,8 +1248,8 @@ class Quaternion {
   
 template<class T>
 Quaternion<T>::Quaternion(T x, T y, T z, T w)
-:x(x)
-,y(y)
+  :x(x)
+  ,y(y)
   ,z(z)
   ,w(w)
 {
@@ -1420,10 +1442,11 @@ inline void Quaternion<T>::multiply(const Quaternion<T>& q) {
 
 template<class T>
 inline void Quaternion<T>::multiply(const Quaternion<T>& q1, const Quaternion<T>& q2, Quaternion<T>* dst) {
-    
+
+  printf("Quaternion::multiply is probably wrong!!!!!! Check!!! \n");
   T xx = q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y;
-  T yy = q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x;
-  T zz = q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.loat;
+  T yy = q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x; 
+  T zz = q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.x; /* This line needs to be checked! */
   T ww = q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z;
 
   dst->x = xx;
