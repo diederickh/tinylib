@@ -1278,7 +1278,7 @@ inline void Quaternion<T>::set(const T xx, const T yy, const T zz, const T ww) {
 }
   
 template<class T>
-inline void Quaternion<T>::Quaternion::normalize() {
+inline void Quaternion<T>::normalize() {
   T n = x * x + y * y + z * z + w * w;
   if(n == 1.0) {
     return;
@@ -1637,8 +1637,9 @@ inline T Spline<T>::at(float t) {
   if(points.size() < 4) {
     return T();
   }
-  if(t > 0.999f) {
-    t = 0.99f;
+  
+  if(t > 0.9999f) {
+    t = 0.9999f;
   }
   else if(t < 0) {
     t = 0;
