@@ -258,7 +258,7 @@
   mat4& mat4.position(x, y, z)
   mat4& mat4.ortho(l, r, b, t, n , f)                                      - pm.ortho(0, w, h, 0, 0.0f, 100.0f);
   mat4& mat4.frustum(l, r, b, t, n, f)
-  mat4& mat4.perspective(fov, aspect, near, far)                           - create a perspective projectio matrix 
+  mat4& mat4.perspective(fov, aspect, near, far)                           - create a RIGHT HANDED perspective projection matrix 
   mat4& mat4.lookat(eye, pos, up)
   void  mat4.print()
   float* mat4.ptr()                                                        - get a pointer to the data
@@ -914,7 +914,7 @@ Matrix4<T>& Matrix4<T>::ortho(T l, T r, T b, T t, T n, T f) {
   return *this;
 }
 
-
+/* Creates a RIGHT HANDED perspective matrix. */
 template<class T>
 Matrix4<T>& Matrix4<T>::perspective(T fovDegrees, T aspect, T n, T f) {
 
