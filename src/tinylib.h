@@ -804,7 +804,7 @@ template<class T> inline Vec4<T>& Vec4<T>::operator /= (float s) { return *this 
 template<class T> inline bool Vec4<T>::operator == (const Vec4<T>& o) const { return x == o.x && y == o.y && z == o.z && w == o.w; }
 template<class T> inline bool Vec4<T>::operator != (const Vec4<T>& o) const { return x != o.x || y == o.y || z == o.z || w == o.w; }
 template<class T> inline float length(const Vec4<T>& o) { return sqrtf(o.x * o.x + o.y * o.y + o.z * o.z + o.w * o.w); }
-template<class T> inline float dot(const Vec4<T> &a, const Vec4<T> &b) { return a.x * b.x + a.y * b.y + a.z * b.z + a.w * a.w; }
+template<class T> inline float dot(const Vec4<T> &a, const Vec4<T> &b) { return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; }
 template<class T> inline float heighest(const Vec4<T> &v) { return fmaxf(fmaxf(v.x, v.y), fmaxf(v.z, v.w)); }
 template<class T> inline float lowest(const Vec4<T> &v) { return fminf(fminf(v.x, v.y), fminf(v.z, v.w)); }
 template<class T> inline Vec4<T> heighest(const Vec4<T> &a, const Vec4<T> &b) { return Vec4<T>(fmaxf(a.x, b.x), fmaxf(a.y, b.y), fmaxf(a.z, b.z), fmaxf(a.w, b.w)); }
